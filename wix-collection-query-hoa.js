@@ -787,140 +787,160 @@ $w.onReady(function () {
     // Use a switch over selected product SKUs to pick the form state (last match wins)
     let matchedState = null;
     //get all the checkboxGroup elements to attach onChange event handlers
-    let selectProductsCheckboxes = [
+    const checkboxIds = [
         'checkboxGroup2',
         'checkboxGroup4',
         'checkboxGroup6',
         'checkboxGroup5',
         'checkboxGroup3',
         'checkboxGroup1'
-    ].map(id => $w(`#${id}`));
+    ];
 
-    // Detect checkbox selection and decide which form to display
-    selectProductsCheckboxes.onChange(async () => {
-        //reset form document links and product display
-        console.log('CheckboxGroup1 onChange triggered');
-        formDocumentLinks = [];
-        productDisplayHTML = [];
-        selectedProducts = [];
-        selectedProducts = $w('#checkboxGroup1').value;
-        console.log('Selected products:', selectedProducts);
-        formSection.expand();
+    const selectProductsCheckboxes = checkboxIds.map(id => $w(`#${id}`));
 
+    // Attach individual onChange handlers so any visible group will trigger processing
+    selectProductsCheckboxes.forEach(cb => {
+        if (!cb || typeof cb.onChange !== 'function') return;
+        cb.onChange(async () => {
+            console.log(`${cb.id} onChange triggered`);
+            // reset form document links and product display
+            formDocumentLinks = [];
+            productDisplayHTML = [];
+            selectedProducts = [];
 
-        for (const p of selectedProducts || []) {
-            console.log('Processing selected product SKU for matchedState logic:', p);
-            switch (p) {
-
-                case 'rec-center-resident':
-                case 'rec-center-non-resident':
-                    // show Rec Center Dues form
-                    matchedState = formBoxRecMember;
-                    formName = 'rec_membership';
-                    formCollectionName = 'formSubsRecMember';
-                    getRecMembershipFormElements();
-                    break;
-
-                case 'hoa-dues-tier-one':
-                case 'hoa-dues-tier-two':
-                    // show HOA Tier 1 & 2 form
-                    matchedState = formBoxHoaTier1and2;
-                    formName = 'hoa_dues_tier_one_and_two';
-                    formCollectionName = 'formSubsHoaDuesTier1and2';
-                    getHoa1and2FormElements();
-                    break;
-
-                case 'hoa-dues-tier-three':
-                    // show HOA Tier 3 form
-                    matchedState = formBoxHoaTier3;
-                    formName = 'hoa_dues_tier_three';
-                    formCollectionName = 'formSubsHoaDuesTier3';
-                    getHoa3FormElements();
-                    break;
-
-                case 'key-fob':
-                    // show Key Fob form
-                    matchedState = formBoxKeyFob;
-                    formName = 'rec_new_key_fob';
-                    formCollectionName = 'formSubsRecNewKeyFob';
-                    getNewKeyFobFormElements();
-                    break;
-
-                case 'pavilion-2-hrs':
-                case 'pavilion-addl-hour':
-                case 'pavilion-jumbo':
-                    // show Pavilion Reservation form
-                    matchedState = formBoxPavilion;
-                    formName = 'rec_reserve_pavilion';
-                    formCollectionName = 'formSubsRecReservePavilion';
-                    getPavilionFormElements();
-                    break;
-
-                default:
-                    // no match for this sku
-                break;
-            }
-        }
-
-        // If any matching state was found, display it and load product data & docs once
-        if (matchedState) {
-            formStatebox.expand();
-            formStatebox.changeState(matchedState);
-
-            await getProductData(selectedProducts);
-            populateFormDocuments();
-
-            if(formErrorMessage) {
-                formErrorMessage.text = '';
-            }
-            if(productDisplay) {
-                productDisplay.hide(); 
-            }
-
-            if (formPropertyAddress) {
-                formPropertyAddress.value = selectedAddress;
-                formPropertyAddress.disable();
-            }
-        }
-        
-        //populate the form documents section
-        function populateFormDocuments() {
-            if (formDocumentLinks.length > 0) {
-                const docElems = formDocumentsElems;
-                // Clear and hide all first
-                docElems.forEach(el => { if (el) { el.html = ''; el.hide(); }});
-
-                for (let i = 0; i < formDocumentLinks.length && i < docElems.length; i++) {
-                    const el = docElems[i];
-                    if (!el) continue;
-                    const link = formDocumentLinks[i];
-                    console.log(`Document ${i + 1}: ${link}`);
-                    el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
-                                <span id="status-${i + 1}" style="font-size: 16px; color: #ff6600; font-weight: bold;">
-                                    ⏳ Pending Review
-                                </span>`;
-                    el.show();
-
-                    el.onClick(() => {
-                        el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
-                                    <span id="status-${i + 1}" style="font-size: 16px; color: #008000; font-weight: bold;">
-                                        ✅ Reviewed
-                                    </span>`;
-                    });
+            // Aggregate selections from all checkbox groups (some may be hidden/not shown)
+            for (const el of selectProductsCheckboxes) {
+                if (!el) continue;
+                try {
+                    const val = el.value;
+                    if (!val) continue;
+                    if (Array.isArray(val)) selectedProducts.push(...val);
+                    else if (typeof val === 'string') selectedProducts.push(val);
+                } catch (e) {
+                    console.warn('Error reading value from checkbox group', e && e.message ? e.message : e);
                 }
-            } else {
-                // Hide all document elements if none
-                formDocumentsElems.hide();
             }
-            // populate the form with the product name, productID, price
-            if (productDisplay && productDisplayHTML.length > 0) {
-                productDisplay.html += '<br>' + productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:700;">${htmlContent}</div>`).join('<br>');
-                productDisplay.show();
-            } else {
-                productDisplay.hide();
-            }
-        }
-    });
+            // remove duplicates
+            selectedProducts = Array.from(new Set(selectedProducts));
+            console.log('Selected products:', selectedProducts);
+            formSection.expand();
+
+            // determine matchedState for the aggregated selections
+            let matchedState = null;
+            for (const p of selectedProducts || []) {
+                console.log('Processing selected product SKU for matchedState logic:', p);
+                switch (p) {
+                 
+                 case 'rec-center-resident':
+                 case 'rec-center-non-resident':
+                     // show Rec Center Dues form
+                     matchedState = formBoxRecMember;
+                     formName = 'rec_membership';
+                     formCollectionName = 'formSubsRecMember';
+                     getRecMembershipFormElements();
+                     break;
+ 
+                 case 'hoa-dues-tier-one':
+                 case 'hoa-dues-tier-two':
+                     // show HOA Tier 1 & 2 form
+                     matchedState = formBoxHoaTier1and2;
+                     formName = 'hoa_dues_tier_one_and_two';
+                     formCollectionName = 'formSubsHoaDuesTier1and2';
+                     getHoa1and2FormElements();
+                     break;
+ 
+                 case 'hoa-dues-tier-three':
+                     // show HOA Tier 3 form
+                     matchedState = formBoxHoaTier3;
+                     formName = 'hoa_dues_tier_three';
+                     formCollectionName = 'formSubsHoaDuesTier3';
+                     getHoa3FormElements();
+                     break;
+ 
+                 case 'key-fob':
+                     // show Key Fob form
+                     matchedState = formBoxKeyFob;
+                     formName = 'rec_new_key_fob';
+                     formCollectionName = 'formSubsRecNewKeyFob';
+                     getNewKeyFobFormElements();
+                     break;
+ 
+                 case 'pavilion-2-hrs':
+                 case 'pavilion-addl-hour':
+                 case 'pavilion-jumbo':
+                     // show Pavilion Reservation form
+                     matchedState = formBoxPavilion;
+                     formName = 'rec_reserve_pavilion';
+                     formCollectionName = 'formSubsRecReservePavilion';
+                     getPavilionFormElements();
+                     break;
+ 
+                 default:
+                     // no match for this sku
+                 break;
+             }
+             }
+
+             // If any matching state was found, display it and load product data & docs once
+             if (matchedState) {
+                 formStatebox.expand();
+                 formStatebox.changeState(matchedState);
+
+                 await getProductData(selectedProducts);
+                 populateFormDocuments();
+
+                 if(formErrorMessage) {
+                     formErrorMessage.text = '';
+                 }
+                 if(productDisplay) {
+                     productDisplay.hide(); 
+                 }
+
+                 if (formPropertyAddress) {
+                     formPropertyAddress.value = selectedAddress;
+                     formPropertyAddress.disable();
+                 }
+             }
+             
+             //populate the form documents section
+             function populateFormDocuments() {
+                 if (formDocumentLinks.length > 0) {
+                     const docElems = formDocumentsElems;
+                     // Clear and hide all first
+                     docElems.forEach(el => { if (el) { el.html = ''; el.hide(); }});
+
+                     for (let i = 0; i < formDocumentLinks.length && i < docElems.length; i++) {
+                         const el = docElems[i];
+                         if (!el) continue;
+                         const link = formDocumentLinks[i];
+                         console.log(`Document ${i + 1}: ${link}`);
+                         el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
+                                     <span id="status-${i + 1}" style="font-size: 16px; color: #ff6600; font-weight: bold;">
+                                         ⏳ Pending Review
+                                     </span>`;
+                         el.show();
+
+                         el.onClick(() => {
+                             el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
+                                         <span id="status-${i + 1}" style="font-size: 16px; color: #008000; font-weight: bold;">
+                                             ✅ Reviewed
+                                         </span>`;
+                         });
+                     }
+                 } else {
+                     // Hide all document elements if none
+                     formDocumentsElems.hide();
+                 }
+                 // populate the form with the product name, productID, price
+                 if (productDisplay && productDisplayHTML.length > 0) {
+                     productDisplay.html += '<br>' + productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:700;">${htmlContent}</div>`).join('<br>');
+                     productDisplay.show();
+                 } else {
+                     productDisplay.hide();
+                 }
+             }
+         });
+     });
     
     // Initialize form submission handlers
     setupFormHandlers();
