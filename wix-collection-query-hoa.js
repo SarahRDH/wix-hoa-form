@@ -820,11 +820,12 @@ $w.onReady(function () {
             if (activeForm.formPropertyAddress) {
                 activeForm.formPropertyAddress.value = selectedAddress;
                 activeForm.formPropertyAddress.disable();
+                console.log('disabled address input');
             }
             getProductData(selectedProducts)
                 .then(() => { populateFormDocuments(); })
                 .catch((e) => { console.error('Error loading product data:', e); });
-            attachSubmitHandler();
+            // attachSubmitHandler();
         } 
         function populateFormDocuments() {
             if (!activeForm) return;
@@ -871,10 +872,10 @@ $w.onReady(function () {
         }
     });
     // Submit button handler attachment based on activeForm
-    function attachSubmitHandler() {
-        if (!activeForm?.formSubmitButton) return;
-        activeForm.formSubmitButton.onClick(() => submitHoaForm());
-    }
+    // function attachSubmitHandler() {
+    //     if (!activeForm?.formSubmitButton) return;
+    //     activeForm.formSubmitButton.onClick(() => submitHoaForm());
+    // }
     
     // Initialize form submission handlers
     setupFormHandlers();
