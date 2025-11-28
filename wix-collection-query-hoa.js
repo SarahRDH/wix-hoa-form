@@ -345,12 +345,13 @@ function getPavilionFormElements() {
 let formCollectionName = ''; // the data collection to submit the form data to
 let formName = ''; // the name of the form the user filled out
 let activeForm = null; // the active form elements object
+let getProductData; // will be assigned inside $w.onReady so it's accessible globally
 
 $w.onReady(function () {
     // Get all the product data from the Products Rich Content Collection for the product selected by the user
     // If new products are added to the store, or existing products are changed, the Collection must be updated with the new product details.
     // The Products Rich Content collection contains the documents that are required for each product.
-    async function getProductData(selectedProducts) {
+    getProductData = async function(selectedProducts) {
         try {
             console.log('getProductData called with:', selectedProducts);
             const result = await wixData.query('productsRichContent').find();
@@ -358,6 +359,9 @@ $w.onReady(function () {
 
             selectedProductsObject = {}; // reset global map
             productsToBuy = []; // reset global array
+            // Reset global link/display arrays to avoid carrying stale Wix Link objects between calls
+            formDocumentLinks = [];
+            productDisplayHTML = [];
 
             if (!items.length) {
                 console.log('No items found in Products Rich Content collection.');
@@ -365,12 +369,19 @@ $w.onReady(function () {
             }
             
             console.log('Found', items.length, 'items in Products Rich Content collection');
-            console.log('First few items:', items.slice(0, 3).map(item => ({
-                sku: item.sku,
-                productSku: item.productSku,
-                product_id_from_app: item.product_id_from_app,
-                name: item.name
-            })));
+            const safePreview = items.slice(0, 3).map(item => {
+                try {
+                    return {
+                        sku: (typeof item.sku === 'string') ? item.sku : String(item.sku || ''),
+                        productSku: (typeof item.productSku === 'string') ? item.productSku : String(item.productSku || ''),
+                        product_id_from_app: (typeof item.product_id_from_app === 'string') ? item.product_id_from_app : String(item.product_id_from_app || '')
+                        // intentionally omit item.name here because it can be a rich link type that throws when accessed
+                    };
+                } catch (e) {
+                    return { error: e && e.message ? e.message : String(e) };
+                }
+            });
+            console.log('First few items (safe preview):', safePreview);
 
             // Ensure selectedProducts is an array
             const selections = Array.isArray(selectedProducts) ? selectedProducts : [];
@@ -380,124 +391,175 @@ $w.onReady(function () {
                 console.log('Trying to match selected product:', sel);
 
                 // Try several matching strategies: sku, productSku, _id, product_id_from_app, or mapped name
-                let match = items.find(it =>
-                    (it.sku && it.sku === sel) ||
-                    (it.productSku && it.productSku === sel) ||
-                    (it._id && it._id === sel) ||
-                    (it.product_id_from_app && it.product_id_from_app.replace(/^product_/, '') === sel) 
-                    
-                );
+                let match = items.find(it => {
+                    try {
+                        if (it.sku && it.sku === sel) return true;
+                        if (it.productSku && it.productSku === sel) return true;
+                        if (it._id && it._id === sel) return true;
+                        if (typeof it.product_id_from_app === 'string' && it.product_id_from_app.replace(/^product_/, '') === sel) return true;
+                    } catch (e) {
+                        console.warn('Error while matching item fields, skipping this item:', e && e.message ? e.message : e);
+                    }
+                    return false;
+                });
 
                 if (match) {
                     // Normalize product id (remove 'product_' prefix if present)
                     const normalizedProductId = (match.product_id_from_app || match._id || '').replace(/^product_/, '');
+                    // Store only safe primitive product metadata to avoid keeping Wix Link objects (which can throw when accessed)
                     selectedProductsObject[sel] = {
                         productId: normalizedProductId,
-                        sku: match.sku || sel,
-                        price: match.price || 0,
-                        rawItem: match
+                        sku: (typeof match.sku === 'string') ? match.sku : String(match.sku || sel),
+                        price: (typeof match.price === 'number') ? match.price : (parseFloat(match.price) || 0)
+                        // Intentionally do not keep match (raw Wix objects) to avoid UnsupportedLinkTypeError later
                     };
                     console.log('Matched product for', sel, selectedProductsObject[sel]);
                     productsToBuy.push(selectedProductsObject[sel]);
                     // Extract document links from the matched item's raw data fields that start with 'form_document_'
                     const docs = [];
                     const productHTML = [];
-                    const raw = match || selectedProductsObject[sel].rawItem;
+                    const raw = match; // use match only locally
+                    // Safely iterate fields and skip any that throw (e.g., unsupported Wix Link types)
                     if (raw && typeof raw === 'object') {
                         for (const key of Object.keys(raw)) {
-                            if (key.startsWith('form_document_')) {
+                            try {
                                 const val = raw[key];
                                 if (val === undefined || val === null || val === '') continue;
 
-                                if (Array.isArray(val)) {
-                                    for (const entry of val) {
-                                        if (!entry) continue;
-                                        if (typeof entry === 'string') docs.push(entry);
-                                        else if (typeof entry === 'object') {
-                                            if (entry.fileUrl) docs.push(entry.fileUrl);
-                                            else if (entry.url) docs.push(entry.url);
-                                            else if (entry.src) docs.push(entry.src);
-                                        }
-                                    }
-                                } else if (typeof val === 'string') {
-                                    docs.push(val);
-                                } else if (typeof val === 'object') {
-                                    if (val.fileUrl) docs.push(val.fileUrl);
-                                    else if (val.url) docs.push(val.url);
-                                    else if (val.src) docs.push(val.src);
-                                }
-                            }
-
-                            if (key == 'name') {
-                                const val = raw[key];
-                                if (val === undefined || val === null || val === '') continue;
-
-                                if (Array.isArray(val)) {
-                                    for (const entry of val) {
-                                        if (!entry) continue;
-                                        if (typeof entry === 'string') productHTML.push(entry);
-                                        else if (typeof entry === 'object') {
-                                            if (entry.fileUrl) productHTML.push(entry.fileUrl);
-                                            else if (entry.url) productHTML.push(entry.url);
-                                            else if (entry.src) productHTML.push(entry.src);
-                                        }
-                                    }
-                                } else if (typeof val === 'string') {
-                                    productHTML.push(val);
-                                } else if (typeof val === 'object') {
-                                    if (val.fileUrl) productHTML.push(val.fileUrl);
-                                    else if (val.url) productHTML.push(val.url);
-                                    else if (val.src) productHTML.push(val.src);
-                                }
-                            }
-
-                            if (key == 'price') {
-                                const val = raw[key];
-                                if (val === undefined || val === null) continue;
-
-                                // Handle numeric price (preferred)
-                                if (typeof val === 'number') {
-                                    // store numeric price and add a formatted display entry
-                                    selectedProductsObject[sel].price = val;
-                                    productHTML.push(`$${val.toFixed(2)}`);
-                                } else if (Array.isArray(val)) {
-                                    for (const entry of val) {
-                                        if (entry === undefined || entry === null) continue;
-                                        if (typeof entry === 'number') {
-                                            selectedProductsObject[sel].price = entry;
-                                            productHTML.push(`$${entry.toFixed(2)}`);
-                                        } else if (typeof entry === 'string') {
-                                            const parsed = parseFloat(entry);
-                                            if (!isNaN(parsed)) {
-                                                selectedProductsObject[sel].price = parsed;
-                                                productHTML.push(`$${parsed.toFixed(2)}`);
-                                            } else {
-                                                productHTML.push(entry);
+                                // Documents (may be string, array, or object)
+                                if (key.startsWith('form_document_')) {
+                                    if (Array.isArray(val)) {
+                                        for (const entry of val) {
+                                            if (!entry) continue;
+                                            if (typeof entry === 'string') docs.push(entry);
+                                            else if (typeof entry === 'object') {
+                                                if (entry.fileUrl) docs.push(entry.fileUrl);
+                                                else if (entry.url) docs.push(entry.url);
+                                                else if (entry.src) docs.push(entry.src);
+                                                else {
+                                                    // try to pick any string-like property
+                                                    for (const v of Object.values(entry)) {
+                                                        if (typeof v === 'string') docs.push(v);
+                                                    }
+                                                }
                                             }
-                                        } else if (typeof entry === 'object') {
-                                            const num = (typeof entry.amount === 'number') ? entry.amount :
-                                                        (typeof entry.price === 'number') ? entry.price :
-                                                        (entry.value && typeof entry.value === 'number') ? entry.value : null;
-                                            if (num !== null) {
-                                                selectedProductsObject[sel].price = num;
-                                                productHTML.push(`$${num.toFixed(2)}`);
-                                            } else if (entry.fileUrl) productHTML.push(entry.fileUrl);
-                                            else if (entry.url) productHTML.push(entry.url);
-                                            else if (entry.src) productHTML.push(entry.src);
+                                        }
+                                    } else if (typeof val === 'string') {
+                                        docs.push(val);
+                                    } else if (typeof val === 'object') {
+                                        if (val.fileUrl) docs.push(val.fileUrl);
+                                        else if (val.url) docs.push(val.url);
+                                        else if (val.src) docs.push(val.src);
+                                        else {
+                                            for (const v of Object.values(val)) { if (typeof v === 'string') docs.push(v); }
                                         }
                                     }
-                                } 
-                            }          
+                                }
+
+                                // Name / display content
+                                if (key == 'name') {
+                                    if (Array.isArray(val)) {
+                                        for (const entry of val) {
+                                            if (!entry) continue;
+                                            if (typeof entry === 'string') productHTML.push(entry);
+                                            else if (typeof entry === 'object') {
+                                                if (entry.fileUrl) productHTML.push(entry.fileUrl);
+                                                else if (entry.url) productHTML.push(entry.url);
+                                                else if (entry.src) productHTML.push(entry.src);
+                                                else {
+                                                    for (const v of Object.values(entry)) { if (typeof v === 'string') productHTML.push(v); }
+                                                }
+                                            }
+                                        }
+                                    } else if (typeof val === 'string') {
+                                        productHTML.push(val);
+                                    } else if (typeof val === 'object') {
+                                        if (val.fileUrl) productHTML.push(val.fileUrl);
+                                        else if (val.url) productHTML.push(val.url);
+                                        else if (val.src) productHTML.push(val.src);
+                                        else { for (const v of Object.values(val)) { if (typeof v === 'string') productHTML.push(v); } }
+                                    }
+                                }
+
+                                // Price parsing
+                                if (key == 'price') {
+                                    if (typeof val === 'number') {
+                                        selectedProductsObject[sel].price = val;
+                                        productHTML.push(`$${val.toFixed(2)}`);
+                                    } else if (Array.isArray(val)) {
+                                        for (const entry of val) {
+                                            if (entry === undefined || entry === null) continue;
+                                            if (typeof entry === 'number') {
+                                                selectedProductsObject[sel].price = entry;
+                                                productHTML.push(`$${entry.toFixed(2)}`);
+                                            } else if (typeof entry === 'string') {
+                                                const parsed = parseFloat(entry);
+                                                if (!isNaN(parsed)) {
+                                                    selectedProductsObject[sel].price = parsed;
+                                                    productHTML.push(`$${parsed.toFixed(2)}`);
+                                                } else {
+                                                    productHTML.push(entry);
+                                                }
+                                            } else if (typeof entry === 'object') {
+                                                const num = (typeof entry.amount === 'number') ? entry.amount : (typeof entry.price === 'number') ? entry.price : (entry.value && typeof entry.value === 'number') ? entry.value : null;
+                                                if (num !== null) {
+                                                    selectedProductsObject[sel].price = num;
+                                                    productHTML.push(`$${num.toFixed(2)}`);
+                                                } else {
+                                                    for (const v of Object.values(entry)) { if (typeof v === 'string') productHTML.push(v); }
+                                                }
+                                            }
+                                        }
+                                    } else if (typeof val === 'object') {
+                                        const num = (typeof val.amount === 'number') ? val.amount : (typeof val.price === 'number') ? val.price : (val.value && typeof val.value === 'number') ? val.value : null;
+                                        if (num !== null) {
+                                            selectedProductsObject[sel].price = num;
+                                            productHTML.push(`$${num.toFixed(2)}`);
+                                        }
+                                    }
+                                }
+
+                            } catch (e) {
+                                // Skip fields that throw (UnsupportedLinkTypeError etc.) and continue processing
+                                console.warn(`Skipping product field ${key} due to error:`, e && e.message ? e.message : e);
+                                continue;
+                            }
                         }
-                        
                     }
 
                     // Merge into global formDocumentLinks, remove duplicates
-                    formDocumentLinks = Array.from(new Set([...(formDocumentLinks || []), ...docs]));
-                    productDisplayHTML = Array.from(new Set([...(productDisplayHTML || []), ...productHTML]));
-                    
-                    console.log('Extracted form document links for', sel, formDocumentLinks);
-                    console.log('Extracted product HTML content for', sel, productDisplayHTML);
+                    // Helper to coerce link-like values into safe strings
+                    function normalizeLinks(arr) {
+                        const out = [];
+                        for (const l of arr || []) {
+                            try {
+                                if (!l) continue;
+                                if (typeof l === 'string') { out.push(l); continue; }
+                                if (typeof l === 'object') {
+                                    if (l.fileUrl) { out.push(l.fileUrl); continue; }
+                                    if (l.url) { out.push(l.url); continue; }
+                                    if (l.src) { out.push(l.src); continue; }
+                                    if (l.href) { out.push(l.href); continue; }
+                                    if (l.link) { out.push(l.link); continue; }
+                                    // pick first stringy property as fallback
+                                    const found = Object.values(l).find(v => typeof v === 'string' && v.length);
+                                    if (found) { out.push(found); continue; }
+                                }
+                                // fallback to string coercion
+                                out.push(String(l));
+                            } catch (e) {
+                                console.warn('normalizeLinks skipping value due to error:', e && e.message ? e.message : e);
+                                continue;
+                            }
+                        }
+                        return out.filter(Boolean);
+                    }
+
+                    formDocumentLinks = Array.from(new Set([...(formDocumentLinks || []), ...normalizeLinks(docs)]));
+                    productDisplayHTML = Array.from(new Set([...(productDisplayHTML || []), ...normalizeLinks(productHTML)]));
+                     
+                     console.log('Extracted form document links for', sel, formDocumentLinks);
+                     console.log('Extracted product HTML content for', sel, productDisplayHTML);
                 } else {
                     console.warn('No product match for', sel);
                     console.log('Available SKUs:', items.map(it => it.sku).filter(Boolean));
@@ -837,15 +899,45 @@ $w.onReady(function () {
                     if (!el) continue;
                     const link = formDocumentLinks[i];
                     console.log(`Document ${i + 1}: ${link}`);
+
+                    // Helper to safely extract a href string from various link shapes
+                    function safeHref(l) {
+                        try {
+                            if (!l) return '';
+                            if (typeof l === 'string') return l;
+                            if (typeof l === 'object') {
+                                if (l.fileUrl) return l.fileUrl;
+                                if (l.url) return l.url;
+                                if (l.src) return l.src;
+                                if (l.href) return l.href;
+                                if (l.link) return l.link;
+                                // Try to find any string property that looks like a URL
+                                for (const v of Object.values(l)) {
+                                    if (typeof v === 'string' && (v.startsWith('http') || v.includes('.pdf') || v.includes('/files/'))) return v;
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('safeHref encountered error for link:', e && e.message ? e.message : e);
+                        }
+                        return '';
+                    }
+
+                    const href = safeHref(link);
+                    if (!href) {
+                        console.warn(`Skipping document ${i + 1} because link could not be resolved to a URL.`);
+                        if (typeof el.hide === 'function') el.hide();
+                        continue;
+                    }
+
                     if (typeof el.html !== 'undefined') {
-                        el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
+                        el.html = `<a href="${href}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
                                 <span id="status-${i + 1}" style="font-size:16px; color:#ff6600; font-weight:bold;">⏳ Pending Review</span>`;
                     }
                     if (typeof el.show === 'function') el.show();
                     if (typeof el.onClick === 'function') {
                         el.onClick(() => {
                             if (typeof el.html !== 'undefined') {
-                                el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
+                                el.html = `<a href="${href}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
                                     <span id="status-${i + 1}" style="font-size:16px; color:#008000; font-weight:bold;">✅ Reviewed</span>`;
                             }
                         });
