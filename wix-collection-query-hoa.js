@@ -112,6 +112,16 @@ const availableHoaMemberTier1and2Products = [
         productSku: "test-product-physical"
     }
 ];
+//need to set up logic for non-resident products
+const availableNonResidentProducts = [
+    {
+        label: "Pay Rec Center Dues",
+        value: "rec-center-non-resident",
+        productId: "product_f7960293-7772-25ce-ca3e-1ce11d5ef324",
+        productSku: "rec-center-non-resident"
+    },
+];
+
 
 // ------------------------------------------ Define HTML elements and helper functions ------------------------------------------
 // These are the HTML elements for the first few questions and the container elements that hold the forms
@@ -378,8 +388,12 @@ $w.onReady(function () {
             })));
 
             // Ensure selectedProducts is an array
+            // it does not have to be an array if only one product is selected
+            if (!Array.isArray(selectedProducts)) {
+                selectedProducts = [selectedProducts];  
+            }  
             const selections = Array.isArray(selectedProducts) ? selectedProducts : [];
-
+            console.log('Processing selected products:', selections);
             // Loop through selected products and match against collection items
             for (const sel of selections) {
                 console.log('Trying to match selected product:', sel);
@@ -645,7 +659,7 @@ $w.onReady(function () {
                     console.log('tier 1');
                     tierNumber = '1';
                     selectProductStatebox.changeState('isHoaMemberIsTier1');
-                    const checkboxGroup2 = $w('#checkboxGroup2'); // checkbox for user to select products
+                    const radioGroup11 = $w('#radioGroup11'); // checkbox for user to select products
                     // getRecMembershipFormElements();
                     // getPavilionFormElements();
                     // getNewKeyFobFormElements();
@@ -653,10 +667,10 @@ $w.onReady(function () {
                     if(hh?.rec_dues_paid) {
                         // HOA and Rec dues already paid - only show rec products
                         isRecMember = true;
-                        checkboxGroup2.options = availableRecMemberProducts;
+                        radioGroup11.options = availableRecMemberProducts;
                     } else {
                         // HOA paid but rec dues not paid - only show rec dues
-                        checkboxGroup2.options = availableHoaMemberTier1and2Products;
+                        radioGroup11.options = availableHoaMemberTier1and2Products;
                         // formName = 'rec_membership';
                         // formCollectionName = 'formSubsRecMember';
                     }
@@ -667,7 +681,7 @@ $w.onReady(function () {
                     console.log('tier 2');
                     tierNumber = '2';
                     selectProductStatebox.changeState('isHoaMemberIsTier2');
-                    const checkboxGroup4 = $w('#checkboxGroup4'); // checkbox for user to select products
+                    const radioGroup13 = $w('#radioGroup13'); // checkbox for user to select products
                     // getRecMembershipFormElements();
                     // getPavilionFormElements();
                     // getNewKeyFobFormElements();
@@ -675,10 +689,10 @@ $w.onReady(function () {
                     if(hh?.rec_dues_paid) {
                         // HOA and Rec dues already paid - only show rec products
                         isRecMember = true;
-                        checkboxGroup4.options = availableRecMemberProducts;
+                        radioGroup13.options = availableRecMemberProducts;
                     } else {
                         // HOA paid but rec dues not paid - only show rec dues
-                        checkboxGroup4.options = availableHoaMemberTier1and2Products;
+                        radioGroup13.options = availableHoaMemberTier1and2Products;
                         // formName = 'rec_membership';
                         // formCollectionName = 'formSubsRecMember';
                     }
@@ -689,10 +703,10 @@ $w.onReady(function () {
                     console.log('tier 3');
                     tierNumber = '3';
                     selectProductStatebox.changeState('isHoaMemberIsTier3');
-                    const checkboxGroup6 = $w('#checkboxGroup6');
+                    const radioGroup15 = $w('#radioGroup15');
                     isRecMember = true;
                     // Tier 3 rec dues included with HOA dues - only show rec products
-                    checkboxGroup6.options = availableRecMemberProducts;
+                    radioGroup15.options = availableRecMemberProducts;
                     // We don't know what form to show until they choose a product - leave formName and formCollectionName empty for now
                     // getNewKeyFobFormElements();
                     // getPavilionFormElements();
@@ -724,14 +738,14 @@ $w.onReady(function () {
                     formName = 'hoa_dues_tier_one_and_two';
                     formCollectionName = 'formSubsHoaDuesTier1and2';
                     selectProductStatebox.changeState('notHoaMemberIsTier1');
-                    const checkboxGroup1 = $w('#checkboxGroup1');
+                    const radioGroup10 = $w('#radioGroup10');
                     // Only show available options - HOA Dues only
-                    checkboxGroup1.options = availableHoaTier1Products;
+                    radioGroup10.options = availableHoaTier1Products;
                     // getHoa1and2FormElements();
 
                     if (isUnit10) {
                         // Add Unit 10 product option
-                        checkboxGroup1.options = checkboxGroup1.options.concat(unit10Product);
+                        radioGroup10.options = radioGroup10.options.concat(unit10Product);
                         console.log('Added Unit 10 product option for resident');
                     }
                     break;
@@ -743,15 +757,15 @@ $w.onReady(function () {
                     formName = 'hoa_dues_tier_one_and_two';
                     formCollectionName = 'formSubsHoaDuesTier1and2';
                     selectProductStatebox.changeState('notHoaMemberIsTier2');
-                    const checkboxGroup3 = $w('#checkboxGroup3');
+                    const radioGroup12 = $w('#radioGroup12');
                     
                     // Only show available options - HOA Dues only
-                    checkboxGroup3.options = availableHoaTier2Products;
+                    radioGroup12.options = availableHoaTier2Products;
                     // getHoa1and2FormElements();
 
                     if (isUnit10) {
                         // Add Unit 10 product option
-                        checkboxGroup3.options = checkboxGroup3.options.concat(unit10Product);
+                        radioGroup12.options = radioGroup12.options.concat(unit10Product);
                         console.log('Added Unit 10 product option for resident');
                     }
                     break;
@@ -761,17 +775,17 @@ $w.onReady(function () {
                     console.log('tier 3');
                     tierNumber = '3';
                     formName = 'hoa_dues_tier_three';
-                    formCollectionName = 'formSubsHoaDuesTier3';
+                    formCollectionName = 'FormSubsHoaDuesTier3';
                     selectProductStatebox.changeState('notHoaMemberIsTier3');
-                    const checkboxGroup5 = $w('#checkboxGroup5');
-                    console.log('checkboxGroup5:', checkboxGroup5, 'statebox:', selectProductStatebox);
+                    const radioGroup14 = $w('#radioGroup14');
+                    console.log('radioGroup14:', radioGroup14, 'statebox:', selectProductStatebox);
                     // Only show available options - HOA Dues only
-                    checkboxGroup5.options = availableHoaTier3Products;
+                    radioGroup14.options = availableHoaTier3Products;
                     // getHoa3FormElements();
 
                     if (isUnit10) {
                         // Add Unit 10 product option
-                        checkboxGroup5.options = checkboxGroup5.options.concat(unit10Product);
+                        radioGroup14.options = radioGroup14.options.concat(unit10Product);
                         console.log('Added Unit 10 product option for resident');
                     }
 
@@ -794,12 +808,14 @@ $w.onReady(function () {
     let getElementsFunction = null;
     //get all the checkboxGroup elements to attach onChange event handlers
     const checkboxIds = [
-        'checkboxGroup2',
-        'checkboxGroup4',
-        'checkboxGroup6',
-        'checkboxGroup5',
-        'checkboxGroup3',
-        'checkboxGroup1'
+        'radioGroup11',
+        'radioGroup13',
+        'radioGroup15',
+        'radioGroup14',
+        'radioGroup12',
+        'radioGroup10',
+        'radioGroup16', // non-resident not rec member
+        'radioGroup17'  // non-resident is rec member
     ];
 
     const selectProductsCheckboxes = checkboxIds.map(id => $w(`#${id}`));
@@ -815,6 +831,10 @@ $w.onReady(function () {
             formDocumentLinks = [];
             productDisplayHTML = [];
             selectedProducts = [];
+            matchedState = null;
+            formName = '';
+            formCollectionName = '';
+            getElementsFunction = null;
 
             selectedProducts = cb.value || [];
             console.log('Initial selected products from', cb.id, ':', selectedProducts);
@@ -836,59 +856,59 @@ $w.onReady(function () {
             formSection.expand();
 
             // determine matchedState for the aggregated selections
-            for (const p of selectedProducts || []) {
-                console.log('Processing selected product SKU for matchedState logic:', p);
-                switch (p) {
+            if(selectedProducts) {
+                console.log('Processing selected product SKU for matchedState logic:', selectedProducts);
+                switch (selectedProducts) {
                 
-                case 'rec-center-resident':
-                case 'rec-center-non-resident':
-                    // show Rec Center Dues form
-                    matchedState = formBoxRecMember;
-                    formName = 'rec_membership';
-                    formCollectionName = 'formSubsRecMember';
-                    getElementsFunction = getRecMembershipFormElements();
-                    break;
+                    case 'rec-center-resident':
+                    case 'rec-center-non-resident':
+                        // show Rec Center Dues form
+                        matchedState = formBoxRecMember;
+                        formName = 'rec_membership';
+                        formCollectionName = 'formSubsRecMember';
+                        getElementsFunction = getRecMembershipFormElements();
+                        break;
 
-                case 'hoa-dues-tier-one':
-                case 'hoa-dues-tier-two':
-                    // show HOA Tier 1 & 2 form
-                    matchedState = formBoxHoaTier1and2;
-                    formName = 'hoa_dues_tier_one_and_two';
-                    formCollectionName = 'formSubsHoaDuesTier1and2';
-                    getElementsFunction = getHoa1and2FormElements();
-                    break;
+                    case 'hoa-dues-tier-one':
+                    case 'hoa-dues-tier-two':
+                        // show HOA Tier 1 & 2 form
+                        matchedState = formBoxHoaTier1and2;
+                        formName = 'hoa_dues_tier_one_and_two';
+                        formCollectionName = 'formSubsHoaDuesTier1and2';
+                        getElementsFunction = getHoa1and2FormElements();
+                        break;
 
-                case 'hoa-dues-tier-three':
-                case 'test-product-physical':
-                    // show HOA Tier 3 form
-                    matchedState = formBoxHoaTier3;
-                    formName = 'hoa_dues_tier_three';
-                    formCollectionName = 'formSubsHoaDuesTier3';
-                    getElementsFunction = getHoa3FormElements();
-                    break;
+                    case 'hoa-dues-tier-three':
+                    case 'test-product-physical':
+                        // show HOA Tier 3 form
+                        matchedState = formBoxHoaTier3;
+                        formName = 'hoa_dues_tier_three';
+                        formCollectionName = 'formSubsHoaDuesTier3';
+                        getElementsFunction = getHoa3FormElements();
+                        break;
 
-                case 'key-fob':
-                    // show Key Fob form
-                    matchedState = formBoxKeyFob;
-                    formName = 'rec_new_key_fob';
-                    formCollectionName = 'formSubsRecNewKeyFob';
-                    getElementsFunction = getNewKeyFobFormElements();
-                    break;
+                    case 'key-fob':
+                        // show Key Fob form
+                        matchedState = formBoxKeyFob;
+                        formName = 'rec_new_key_fob';
+                        formCollectionName = 'formSubsRecNewKeyFob';
+                        getElementsFunction = getNewKeyFobFormElements();
+                        break;
 
-                case 'pavilion-2-hrs':
-                case 'pavilion-addl-hour':
-                case 'pavilion-jumbo':
-                    // show Pavilion Reservation form
-                    matchedState = formBoxPavilion;
-                    formName = 'rec_reserve_pavilion';
-                    formCollectionName = 'formSubsRecReservePavilion';
-                    getElementsFunction = getPavilionFormElements();
-                    break;
+                    case 'pavilion-2-hrs':
+                    case 'pavilion-addl-hour':
+                    case 'pavilion-jumbo':
+                        // show Pavilion Reservation form
+                        matchedState = formBoxPavilion;
+                        formName = 'rec_reserve_pavilion';
+                        formCollectionName = 'formSubsRecReservePavilion';
+                        getElementsFunction = getPavilionFormElements();
+                        break;
 
-                default:
-                    // no match for this sku
-                break;
-            }
+                    default:
+                        // no match for this sku
+                    break;
+                }
             }
 
             // If any matching state was found, display it and load product data & docs once
@@ -924,7 +944,7 @@ $w.onReady(function () {
                 formPoolUse = elements.formPoolUse || null;
                 formLifeGuard = elements.formLifeGuard || null;
 
-                console.log('Resolved form elements:', {
+                console.log('first few esolved form elements:', {
                     formPropertyAddress,
                     formErrorMessage,
                     formSubmitButton,
@@ -1035,7 +1055,7 @@ async function submitHoaForm() {
         const firstName = formFirstName.value?.trim();
         const lastName = formLastName.value?.trim();
         const phone = formPhone.value?.trim();
-        const email = formAdultsRec.value?.trim();
+        const email = formEmail.value?.trim();
         const signature = formSignature.value;
         const propertyAddress = formPropertyAddress.value;
         
