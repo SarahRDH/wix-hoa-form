@@ -325,22 +325,22 @@ function getPavilionFormElements() {
 // ------------------------------------------- End of HTML elements and helper functions ------------------------------------------
 
 // Lightweight loading helpers. Add a Box (e.g., #loadingBox) and optional Text (#loadingText) on the page.
-const loaderConfig = { boxId: '#loadingBox', textId: '#loadingText' };
-function showLoading(message) {
-    try {
-        const box = $w(loaderConfig.boxId);
-        const txt = $w(loaderConfig.textId);
-        if (txt && typeof txt.text !== 'undefined' && message) txt.text = message;
-        else if (txt && typeof txt.html !== 'undefined' && message) txt.html = `<div>${message}</div>`;
-        if (box && typeof box.show === 'function') box.show();
-    } catch (e) { /* no-op if loader elements are not on this page */ }
-}
-function hideLoading() {
-    try {
-        const box = $w(loaderConfig.boxId);
-        if (box && typeof box.hide === 'function') box.hide();
-    } catch (e) { /* no-op */ }
-}
+// const loaderConfig = { boxId: '#loadingBox', textId: '#loadingText' };
+// function showLoading(message) {
+//     try {
+//         const box = $w(loaderConfig.boxId);
+//         const txt = $w(loaderConfig.textId);
+//         if (txt && typeof txt.text !== 'undefined' && message) txt.text = message;
+//         else if (txt && typeof txt.html !== 'undefined' && message) txt.html = `<div>${message}</div>`;
+//         if (box && typeof box.show === 'function') box.show();
+//     } catch (e) { /* no-op if loader elements are not on this page */ }
+// }
+// function hideLoading() {
+//     try {
+//         const box = $w(loaderConfig.boxId);
+//         if (box && typeof box.hide === 'function') box.hide();
+//     } catch (e) { /* no-op */ }
+// }
 
 let formCollectionName = ''; // the data collection to submit the form data to
 let formName = ''; // the name of the form the user filled out
@@ -532,7 +532,7 @@ $w.onReady(function () {
     nonResidentBox.collapse();
     if (activeForm?.formErrorMessage) { activeForm.formErrorMessage.text = ''; }
     if (activeForm?.productDisplay && typeof activeForm.productDisplay.hide === 'function') { activeForm.productDisplay.hide(); }
-    hideLoading(); // ensure loader is hidden on initial load
+    // hideLoading(); // ensure loader is hidden on initial load
 
     // Are you a resident?
     $w('#radioGroup1').onChange(() => {
@@ -584,7 +584,7 @@ $w.onReady(function () {
         selectProductStatebox.collapse();
         
         console.log('Searching datasetResidents...');
-        showLoading('Looking up your address...');
+        // showLoading('Looking up your address...');
 
         const dataset = $w('#datasetResidents');
 
@@ -773,7 +773,7 @@ $w.onReady(function () {
         }
 
         selectProductStatebox.expand();
-        hideLoading();
+        // hideLoading();
     });
 
     // ------------------------------------------Display the forms in the multi-state box ------------------------------------------
@@ -782,7 +782,7 @@ $w.onReady(function () {
     function handleProductSelection(selectedProducts) {
         console.log('Selected products:', selectedProducts);
         formSection.expand();
-        showLoading('Loading products & documents...');
+        // showLoading('Loading products & documents...');
         let matchedState = null;
         for (const p of selectedProducts || []) {
             switch (p) {
@@ -823,12 +823,9 @@ $w.onReady(function () {
             }
             getProductData(selectedProducts)
                 .then(() => { populateFormDocuments(); })
-                .catch((e) => { console.error('Error loading product data:', e); })
-                .finally(() => { hideLoading(); });
+                .catch((e) => { console.error('Error loading product data:', e); });
             attachSubmitHandler();
-        } else {
-            hideLoading();
-        }
+        } 
         function populateFormDocuments() {
             if (!activeForm) return;
             const { formDocumentsElems, productDisplay } = activeForm;
