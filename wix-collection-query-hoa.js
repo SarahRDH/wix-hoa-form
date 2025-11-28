@@ -168,7 +168,7 @@ let formLifeGuard = null;
 
 const formElementsHoa1and2 = {
     address: 'input5',
-    error: 'text62',
+    error: 'text119',
     submit: 'button8',
     signature: 'signatureInput1',
     docs: ['text60', 'text71', 'text72', 'text73'],
@@ -838,21 +838,6 @@ $w.onReady(function () {
 
             selectedProducts = cb.value || [];
             console.log('Initial selected products from', cb.id, ':', selectedProducts);
-            // Aggregate selections from all checkbox groups (some may be hidden/not shown)
-            // for (const el of selectProductsCheckboxes) {
-            //     if (!el) continue;
-            //     try {
-            //         selectedProducts = el.value;
-            //         if(!selectedProducts) continue;
-            //         if (Array.isArray(selectedProducts)) selectedProducts.push(...selectedProducts);
-            //         else if (typeof selectedProducts === 'string') selectedProducts.push(selectedProducts);
-            //     } catch (e) {
-            //         console.warn('Error reading value from checkbox group', e && e.message ? e.message : e);
-            //     }
-            // }
-            // remove duplicates
-            // selectedProducts = Array.from(new Set(selectedProducts));
-            console.log('Selected products:', selectedProducts);
             formSection.expand();
 
             // determine matchedState for the aggregated selections
@@ -944,7 +929,7 @@ $w.onReady(function () {
                 formPoolUse = elements.formPoolUse || null;
                 formLifeGuard = elements.formLifeGuard || null;
 
-                console.log('first few esolved form elements:', {
+                console.log('first few resolved form elements:', {
                     formPropertyAddress,
                     formErrorMessage,
                     formSubmitButton,
@@ -953,23 +938,13 @@ $w.onReady(function () {
                 });
 
                 // Set the selected address on the resolved address element(s).
-                // Helpers return a single element for address in this codebase, but handle arrays defensively.
-                if (Array.isArray(formPropertyAddress)) {
-                    formPropertyAddress.forEach(fpa => {
-                        if (fpa) {
-                            fpa.value = selectedAddress;
-                            if (typeof fpa.disable === 'function') fpa.disable();
-                        }
-                    });
-                } else if (formPropertyAddress) {
+                if (formPropertyAddress) {
                     try {
                         formPropertyAddress.value = selectedAddress;
                         if (typeof formPropertyAddress.disable === 'function') formPropertyAddress.disable();
                     } catch (e) {
                         console.warn('Could not set formPropertyAddress value:', e);
                     }
-                } else {
-                    console.warn('formPropertyAddress is not available for this form state');
                 }
 
                 // Re-bind submit handler now that formSubmitButton is set
@@ -990,6 +965,9 @@ $w.onReady(function () {
             
                 //populate the form documents section - IS WORKING
                 function populateFormDocuments() {
+                    formErrorMessage.text = '';
+                    if (typeof formPropertyAddress.disable === 'function') formPropertyAddress.disable();
+
                     if (formDocumentLinks.length > 0) {
                         const docElems = formDocumentsElems;
                         // Clear and hide all first
@@ -1047,7 +1025,7 @@ function setupFormHandlers() {
 async function submitHoaForm() {
     try {
         console.log('Submitting HOA Dues form...');
-        formPropertyAddress.disable();
+        if (typeof formPropertyAddress.disable === 'function') formPropertyAddress.disable();
         // Hide any previous error messages
         formErrorMessage.text = '';
         
@@ -1092,10 +1070,16 @@ async function submitHoaForm() {
             formErrorMessage.text = errorMessage;
             return;
         }
-
+        // Validate that the form has been signed
+        if (!signature || signature.trim() === '') {
+            const errorMessage = 'Please provide your signature before submitting the form.';
+            formErrorMessage.text = errorMessage;
+            return;
+        }
         
         // Capture the product sku connected to the checkbox selection and 
         // submit those to the form submission data. Then add those to the cart.
+        console.log('Selected products to submit:', selectedProducts);
         let itemToInsert = {
             "form_name": formName, // For a text field
             "form_property_address": propertyAddress, // Value from an input element
@@ -1104,11 +1088,7 @@ async function submitHoaForm() {
             "form_phone_number": phone,
             "form_email": email,
             "form_signature": signature,
-            "form_product_sku_01": selectedProducts[0] || '',
-            "form_product_sku_02": selectedProducts[1] || '',
-            "form_product_sku_03": selectedProducts[2] || '',
-            "form_product_sku_04": selectedProducts[3] || '',
-            "form_product_sku_05": selectedProducts[4] || ''
+            "form_product_sku_01": selectedProducts.join(', ') // Join all selected SKUs into a single string
         };
         wixData.insert(formCollectionName, itemToInsert)
             .then((insertedItem) => {
