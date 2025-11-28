@@ -347,11 +347,10 @@ let formName = ''; // the name of the form the user filled out
 let activeForm = null; // the active form elements object
 let getProductData; // will be assigned inside $w.onReady so it's accessible globally
 
+
 $w.onReady(function () {
-    // Get all the product data from the Products Rich Content Collection for the product selected by the user
-    // If new products are added to the store, or existing products are changed, the Collection must be updated with the new product details.
-    // The Products Rich Content collection contains the documents that are required for each product.
-    getProductData = async function(selectedProducts) {
+    // Get all the product data for the product selected by the user
+    async function getProductData(selectedProducts) {
         try {
             console.log('getProductData called with:', selectedProducts);
             const result = await wixData.query('productsRichContent').find();
@@ -359,9 +358,6 @@ $w.onReady(function () {
 
             selectedProductsObject = {}; // reset global map
             productsToBuy = []; // reset global array
-            // Reset global link/display arrays to avoid carrying stale Wix Link objects between calls
-            formDocumentLinks = [];
-            productDisplayHTML = [];
 
             if (!items.length) {
                 console.log('No items found in Products Rich Content collection.');
@@ -369,19 +365,12 @@ $w.onReady(function () {
             }
             
             console.log('Found', items.length, 'items in Products Rich Content collection');
-            const safePreview = items.slice(0, 3).map(item => {
-                try {
-                    return {
-                        sku: (typeof item.sku === 'string') ? item.sku : String(item.sku || ''),
-                        productSku: (typeof item.productSku === 'string') ? item.productSku : String(item.productSku || ''),
-                        product_id_from_app: (typeof item.product_id_from_app === 'string') ? item.product_id_from_app : String(item.product_id_from_app || '')
-                        // intentionally omit item.name here because it can be a rich link type that throws when accessed
-                    };
-                } catch (e) {
-                    return { error: e && e.message ? e.message : String(e) };
-                }
-            });
-            console.log('First few items (safe preview):', safePreview);
+            console.log('First few items:', items.slice(0, 3).map(item => ({
+                sku: item.sku,
+                productSku: item.productSku,
+                product_id_from_app: item.product_id_from_app,
+                name: item.name
+            })));
 
             // Ensure selectedProducts is an array
             const selections = Array.isArray(selectedProducts) ? selectedProducts : [];
@@ -391,175 +380,124 @@ $w.onReady(function () {
                 console.log('Trying to match selected product:', sel);
 
                 // Try several matching strategies: sku, productSku, _id, product_id_from_app, or mapped name
-                let match = items.find(it => {
-                    try {
-                        if (it.sku && it.sku === sel) return true;
-                        if (it.productSku && it.productSku === sel) return true;
-                        if (it._id && it._id === sel) return true;
-                        if (typeof it.product_id_from_app === 'string' && it.product_id_from_app.replace(/^product_/, '') === sel) return true;
-                    } catch (e) {
-                        console.warn('Error while matching item fields, skipping this item:', e && e.message ? e.message : e);
-                    }
-                    return false;
-                });
+                let match = items.find(it =>
+                    (it.sku && it.sku === sel) ||
+                    (it.productSku && it.productSku === sel) ||
+                    (it._id && it._id === sel) ||
+                    (it.product_id_from_app && it.product_id_from_app.replace(/^product_/, '') === sel) 
+                    
+                );
 
                 if (match) {
                     // Normalize product id (remove 'product_' prefix if present)
                     const normalizedProductId = (match.product_id_from_app || match._id || '').replace(/^product_/, '');
-                    // Store only safe primitive product metadata to avoid keeping Wix Link objects (which can throw when accessed)
                     selectedProductsObject[sel] = {
                         productId: normalizedProductId,
-                        sku: (typeof match.sku === 'string') ? match.sku : String(match.sku || sel),
-                        price: (typeof match.price === 'number') ? match.price : (parseFloat(match.price) || 0)
-                        // Intentionally do not keep match (raw Wix objects) to avoid UnsupportedLinkTypeError later
+                        sku: match.sku || sel,
+                        price: match.price || 0,
+                        rawItem: match
                     };
                     console.log('Matched product for', sel, selectedProductsObject[sel]);
                     productsToBuy.push(selectedProductsObject[sel]);
                     // Extract document links from the matched item's raw data fields that start with 'form_document_'
                     const docs = [];
                     const productHTML = [];
-                    const raw = match; // use match only locally
-                    // Safely iterate fields and skip any that throw (e.g., unsupported Wix Link types)
+                    const raw = match || selectedProductsObject[sel].rawItem;
                     if (raw && typeof raw === 'object') {
                         for (const key of Object.keys(raw)) {
-                            try {
+                            if (key.startsWith('form_document_')) {
                                 const val = raw[key];
                                 if (val === undefined || val === null || val === '') continue;
 
-                                // Documents (may be string, array, or object)
-                                if (key.startsWith('form_document_')) {
-                                    if (Array.isArray(val)) {
-                                        for (const entry of val) {
-                                            if (!entry) continue;
-                                            if (typeof entry === 'string') docs.push(entry);
-                                            else if (typeof entry === 'object') {
-                                                if (entry.fileUrl) docs.push(entry.fileUrl);
-                                                else if (entry.url) docs.push(entry.url);
-                                                else if (entry.src) docs.push(entry.src);
-                                                else {
-                                                    // try to pick any string-like property
-                                                    for (const v of Object.values(entry)) {
-                                                        if (typeof v === 'string') docs.push(v);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    } else if (typeof val === 'string') {
-                                        docs.push(val);
-                                    } else if (typeof val === 'object') {
-                                        if (val.fileUrl) docs.push(val.fileUrl);
-                                        else if (val.url) docs.push(val.url);
-                                        else if (val.src) docs.push(val.src);
-                                        else {
-                                            for (const v of Object.values(val)) { if (typeof v === 'string') docs.push(v); }
+                                if (Array.isArray(val)) {
+                                    for (const entry of val) {
+                                        if (!entry) continue;
+                                        if (typeof entry === 'string') docs.push(entry);
+                                        else if (typeof entry === 'object') {
+                                            if (entry.fileUrl) docs.push(entry.fileUrl);
+                                            else if (entry.url) docs.push(entry.url);
+                                            else if (entry.src) docs.push(entry.src);
                                         }
                                     }
+                                } else if (typeof val === 'string') {
+                                    docs.push(val);
+                                } else if (typeof val === 'object') {
+                                    if (val.fileUrl) docs.push(val.fileUrl);
+                                    else if (val.url) docs.push(val.url);
+                                    else if (val.src) docs.push(val.src);
                                 }
-
-                                // Name / display content
-                                if (key == 'name') {
-                                    if (Array.isArray(val)) {
-                                        for (const entry of val) {
-                                            if (!entry) continue;
-                                            if (typeof entry === 'string') productHTML.push(entry);
-                                            else if (typeof entry === 'object') {
-                                                if (entry.fileUrl) productHTML.push(entry.fileUrl);
-                                                else if (entry.url) productHTML.push(entry.url);
-                                                else if (entry.src) productHTML.push(entry.src);
-                                                else {
-                                                    for (const v of Object.values(entry)) { if (typeof v === 'string') productHTML.push(v); }
-                                                }
-                                            }
-                                        }
-                                    } else if (typeof val === 'string') {
-                                        productHTML.push(val);
-                                    } else if (typeof val === 'object') {
-                                        if (val.fileUrl) productHTML.push(val.fileUrl);
-                                        else if (val.url) productHTML.push(val.url);
-                                        else if (val.src) productHTML.push(val.src);
-                                        else { for (const v of Object.values(val)) { if (typeof v === 'string') productHTML.push(v); } }
-                                    }
-                                }
-
-                                // Price parsing
-                                if (key == 'price') {
-                                    if (typeof val === 'number') {
-                                        selectedProductsObject[sel].price = val;
-                                        productHTML.push(`$${val.toFixed(2)}`);
-                                    } else if (Array.isArray(val)) {
-                                        for (const entry of val) {
-                                            if (entry === undefined || entry === null) continue;
-                                            if (typeof entry === 'number') {
-                                                selectedProductsObject[sel].price = entry;
-                                                productHTML.push(`$${entry.toFixed(2)}`);
-                                            } else if (typeof entry === 'string') {
-                                                const parsed = parseFloat(entry);
-                                                if (!isNaN(parsed)) {
-                                                    selectedProductsObject[sel].price = parsed;
-                                                    productHTML.push(`$${parsed.toFixed(2)}`);
-                                                } else {
-                                                    productHTML.push(entry);
-                                                }
-                                            } else if (typeof entry === 'object') {
-                                                const num = (typeof entry.amount === 'number') ? entry.amount : (typeof entry.price === 'number') ? entry.price : (entry.value && typeof entry.value === 'number') ? entry.value : null;
-                                                if (num !== null) {
-                                                    selectedProductsObject[sel].price = num;
-                                                    productHTML.push(`$${num.toFixed(2)}`);
-                                                } else {
-                                                    for (const v of Object.values(entry)) { if (typeof v === 'string') productHTML.push(v); }
-                                                }
-                                            }
-                                        }
-                                    } else if (typeof val === 'object') {
-                                        const num = (typeof val.amount === 'number') ? val.amount : (typeof val.price === 'number') ? val.price : (val.value && typeof val.value === 'number') ? val.value : null;
-                                        if (num !== null) {
-                                            selectedProductsObject[sel].price = num;
-                                            productHTML.push(`$${num.toFixed(2)}`);
-                                        }
-                                    }
-                                }
-
-                            } catch (e) {
-                                // Skip fields that throw (UnsupportedLinkTypeError etc.) and continue processing
-                                console.warn(`Skipping product field ${key} due to error:`, e && e.message ? e.message : e);
-                                continue;
                             }
+
+                            if (key == 'name') {
+                                const val = raw[key];
+                                if (val === undefined || val === null || val === '') continue;
+
+                                if (Array.isArray(val)) {
+                                    for (const entry of val) {
+                                        if (!entry) continue;
+                                        if (typeof entry === 'string') productHTML.push(entry);
+                                        else if (typeof entry === 'object') {
+                                            if (entry.fileUrl) productHTML.push(entry.fileUrl);
+                                            else if (entry.url) productHTML.push(entry.url);
+                                            else if (entry.src) productHTML.push(entry.src);
+                                        }
+                                    }
+                                } else if (typeof val === 'string') {
+                                    productHTML.push(val);
+                                } else if (typeof val === 'object') {
+                                    if (val.fileUrl) productHTML.push(val.fileUrl);
+                                    else if (val.url) productHTML.push(val.url);
+                                    else if (val.src) productHTML.push(val.src);
+                                }
+                            }
+
+                            if (key == 'price') {
+                                const val = raw[key];
+                                if (val === undefined || val === null) continue;
+
+                                // Handle numeric price (preferred)
+                                if (typeof val === 'number') {
+                                    // store numeric price and add a formatted display entry
+                                    selectedProductsObject[sel].price = val;
+                                    productHTML.push(`$${val.toFixed(2)}`);
+                                } else if (Array.isArray(val)) {
+                                    for (const entry of val) {
+                                        if (entry === undefined || entry === null) continue;
+                                        if (typeof entry === 'number') {
+                                            selectedProductsObject[sel].price = entry;
+                                            productHTML.push(`$${entry.toFixed(2)}`);
+                                        } else if (typeof entry === 'string') {
+                                            const parsed = parseFloat(entry);
+                                            if (!isNaN(parsed)) {
+                                                selectedProductsObject[sel].price = parsed;
+                                                productHTML.push(`$${parsed.toFixed(2)}`);
+                                            } else {
+                                                productHTML.push(entry);
+                                            }
+                                        } else if (typeof entry === 'object') {
+                                            const num = (typeof entry.amount === 'number') ? entry.amount :
+                                                        (typeof entry.price === 'number') ? entry.price :
+                                                        (entry.value && typeof entry.value === 'number') ? entry.value : null;
+                                            if (num !== null) {
+                                                selectedProductsObject[sel].price = num;
+                                                productHTML.push(`$${num.toFixed(2)}`);
+                                            } else if (entry.fileUrl) productHTML.push(entry.fileUrl);
+                                            else if (entry.url) productHTML.push(entry.url);
+                                            else if (entry.src) productHTML.push(entry.src);
+                                        }
+                                    }
+                                } 
+                            }          
                         }
+                        
                     }
 
                     // Merge into global formDocumentLinks, remove duplicates
-                    // Helper to coerce link-like values into safe strings
-                    function normalizeLinks(arr) {
-                        const out = [];
-                        for (const l of arr || []) {
-                            try {
-                                if (!l) continue;
-                                if (typeof l === 'string') { out.push(l); continue; }
-                                if (typeof l === 'object') {
-                                    if (l.fileUrl) { out.push(l.fileUrl); continue; }
-                                    if (l.url) { out.push(l.url); continue; }
-                                    if (l.src) { out.push(l.src); continue; }
-                                    if (l.href) { out.push(l.href); continue; }
-                                    if (l.link) { out.push(l.link); continue; }
-                                    // pick first stringy property as fallback
-                                    const found = Object.values(l).find(v => typeof v === 'string' && v.length);
-                                    if (found) { out.push(found); continue; }
-                                }
-                                // fallback to string coercion
-                                out.push(String(l));
-                            } catch (e) {
-                                console.warn('normalizeLinks skipping value due to error:', e && e.message ? e.message : e);
-                                continue;
-                            }
-                        }
-                        return out.filter(Boolean);
-                    }
-
-                    formDocumentLinks = Array.from(new Set([...(formDocumentLinks || []), ...normalizeLinks(docs)]));
-                    productDisplayHTML = Array.from(new Set([...(productDisplayHTML || []), ...normalizeLinks(productHTML)]));
-                     
-                     console.log('Extracted form document links for', sel, formDocumentLinks);
-                     console.log('Extracted product HTML content for', sel, productDisplayHTML);
+                    formDocumentLinks = Array.from(new Set([...(formDocumentLinks || []), ...docs]));
+                    productDisplayHTML = Array.from(new Set([...(productDisplayHTML || []), ...productHTML]));
+                    
+                    console.log('Extracted form document links for', sel, formDocumentLinks);
+                    console.log('Extracted product HTML content for', sel, productDisplayHTML);
                 } else {
                     console.warn('No product match for', sel);
                     console.log('Available SKUs:', items.map(it => it.sku).filter(Boolean));
@@ -583,6 +521,7 @@ $w.onReady(function () {
 
 // ------------------------------------------Display and hide form elements based on user input ------------------------------------------
 
+    // Q1: own property?
     formSection.collapse();
     residentDropdownMessage.hide();
     residentAddressDropdown.collapse();
@@ -592,9 +531,8 @@ $w.onReady(function () {
     formStatebox.collapse();
     residentBox.collapse();
     nonResidentBox.collapse();
-    if (activeForm?.formErrorMessage) { activeForm.formErrorMessage.text = ''; }
-    if (activeForm?.productDisplay && typeof activeForm.productDisplay.hide === 'function') { activeForm.productDisplay.hide(); }
-    // hideLoading(); // ensure loader is hidden on initial load
+    formErrorMessage.text = '';
+    productDisplay.hide(); 
 
     // Are you a resident?
     $w('#radioGroup1').onChange(() => {
@@ -629,7 +567,7 @@ $w.onReady(function () {
         }
     });
     
-    // When resident address chosen, find matching household in datasetResidents (Residents Main Collection)
+    // When resident address chosen, decide which statebox to show
     residentAddressDropdown.onChange(async () => {
         const householdId = residentAddressDropdown.value;
         selectedAddress = householdId; // Store selected address globally
@@ -646,7 +584,6 @@ $w.onReady(function () {
         selectProductStatebox.collapse();
         
         console.log('Searching datasetResidents...');
-        // showLoading('Looking up your address...');
 
         const dataset = $w('#datasetResidents');
 
@@ -696,7 +633,7 @@ $w.onReady(function () {
             console.error('Dataset error:', error);
         }
 
-        // Decide which products, forms, and destination collections to use based on HOA / Rec member status and tier
+        // Decide which products to show based on HOA / Rec member status and tier
         if (hh?.hoa_dues_paid) { 
             isHoaMember = true;
 
@@ -811,7 +748,7 @@ $w.onReady(function () {
                     console.log('tier 3');
                     tierNumber = '3';
                     formName = 'hoa_dues_tier_three';
-                    formCollectionName = 'FormSubsHoaDuesTier3';
+                    formCollectionName = 'formSubsHoaDuesTier3';
                     selectProductStatebox.changeState('notHoaMemberIsTier3');
                     const checkboxGroup5 = $w('#checkboxGroup5');
 
@@ -835,139 +772,112 @@ $w.onReady(function () {
         }
 
         selectProductStatebox.expand();
-        // hideLoading();
     });
-
-    // ------------------------------------------Display the forms in the multi-state box ------------------------------------------
+// ------------------------------------------Display the forms in the multi-state box ------------------------------------------
     
-    // Replace single checkboxGroup1 handler with unified handler for all product checkbox groups
-    function handleProductSelection(selectedProducts) {
+    // Detect checkbox selection and decide which form to display
+    $w('#checkboxGroup1').onChange(async () => {
+        selectedProducts = $w('#checkboxGroup1').value;
         console.log('Selected products:', selectedProducts);
         formSection.expand();
-        // showLoading('Loading products & documents...');
+
+        // Use a switch over selected product SKUs to pick the form state (last match wins)
         let matchedState = null;
+
         for (const p of selectedProducts || []) {
             switch (p) {
+
                 case 'rec-center-resident':
                 case 'rec-center-non-resident':
-                    matchedState = formBoxRecMember; break;
+                    // show Rec Center Dues form
+                    matchedState = formBoxRecMember;
+                    break;
+
                 case 'hoa-dues-tier-one':
                 case 'hoa-dues-tier-two':
-                    matchedState = formBoxHoaTier1and2; break;
+                    // show HOA Tier 1 & 2 form
+                    matchedState = formBoxHoaTier1and2;
+                    break;
+
                 case 'hoa-dues-tier-three':
-                    matchedState = formBoxHoaTier3; break;
+                    // show HOA Tier 3 form
+                    matchedState = formBoxHoaTier3;
+                    break;
+
                 case 'key-fob':
-                    matchedState = formBoxKeyFob; formName = 'rec_new_key_fob'; formCollectionName = 'formSubsRecNewKeyFob'; break;
+                    // show Key Fob form
+                    matchedState = formBoxKeyFob;
+                    formName = 'rec_new_key_fob';
+                    formCollectionName = 'formSubsRecNewKeyFob';
+                    break;
+
                 case 'pavilion-2-hrs':
                 case 'pavilion-addl-hour':
                 case 'pavilion-jumbo':
-                    matchedState = formBoxPavilion; formName = 'rec_reserve_pavilion'; formCollectionName = 'formSubsRecReservePavilion'; break;
-                default: break;
-            }
-        }
-        if (matchedState) {
-            switch (matchedState) {
-                case formBoxHoaTier1and2: activeForm = getHoa1and2FormElements(); break;
-                case formBoxHoaTier3: activeForm = getHoa3FormElements(); break;
-                case formBoxRecMember: activeForm = getRecMembershipFormElements(); break;
-                case formBoxKeyFob: activeForm = getNewKeyFobFormElements(); break;
-                case formBoxPavilion: activeForm = getPavilionFormElements(); break;
-                default: activeForm = null; 
+                    // show Pavilion Reservation form
+                    matchedState = formBoxPavilion;
+                    formName = 'rec_reserve_pavilion';
+                    formCollectionName = 'formSubsRecReservePavilion';
+                    break;
+
+                default:
+                    // no match for this sku
                 break;
             }
         }
-        if (matchedState && activeForm) {
+
+        // If any matching state was found, display it and load product data & docs once
+        if (matchedState) {
             formStatebox.expand();
             formStatebox.changeState(matchedState);
-            if (activeForm.formPropertyAddress) {
-                activeForm.formPropertyAddress.value = selectedAddress;
-                activeForm.formPropertyAddress.disable();
-                console.log('disabled address input');
+
+            if (formPropertyAddress) {
+                formPropertyAddress.value = selectedAddress;
+                formPropertyAddress.disable();
             }
-            getProductData(selectedProducts)
-                .then(() => { populateFormDocuments(); })
-                .catch((e) => { console.error('Error loading product data:', e); });
-            // attachSubmitHandler();
-        } 
+
+            await getProductData(selectedProducts);
+            populateFormDocuments();
+        }
+        
+        //populate the form documents section
         function populateFormDocuments() {
-            if (!activeForm) return;
-            const { formDocumentsElems, productDisplay } = activeForm;
-            if (formDocumentLinks.length > 0 && formDocumentsElems) {
-                formDocumentsElems.forEach(el => { if (el) { if (typeof el.html !== 'undefined') el.html=''; if (typeof el.hide === 'function') el.hide(); } });
-                for (let i = 0; i < formDocumentLinks.length && i < formDocumentsElems.length; i++) {
-                    const el = formDocumentsElems[i];
+            if (formDocumentLinks.length > 0) {
+                const docElems = [formDocuments1, formDocuments2, formDocuments3, formDocuments4];
+                // Clear and hide all first
+                docElems.forEach(el => { if (el) { el.html = ''; el.hide(); }});
+
+                for (let i = 0; i < formDocumentLinks.length && i < docElems.length; i++) {
+                    const el = docElems[i];
                     if (!el) continue;
                     const link = formDocumentLinks[i];
                     console.log(`Document ${i + 1}: ${link}`);
+                    el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
+                                <span id="status-${i + 1}" style="font-size: 16px; color: #ff6600; font-weight: bold;">
+                                    ⏳ Pending Review
+                                </span>`;
+                    el.show();
 
-                    // Helper to safely extract a href string from various link shapes
-                    function safeHref(l) {
-                        try {
-                            if (!l) return '';
-                            if (typeof l === 'string') return l;
-                            if (typeof l === 'object') {
-                                if (l.fileUrl) return l.fileUrl;
-                                if (l.url) return l.url;
-                                if (l.src) return l.src;
-                                if (l.href) return l.href;
-                                if (l.link) return l.link;
-                                // Try to find any string property that looks like a URL
-                                for (const v of Object.values(l)) {
-                                    if (typeof v === 'string' && (v.startsWith('http') || v.includes('.pdf') || v.includes('/files/'))) return v;
-                                }
-                            }
-                        } catch (e) {
-                            console.warn('safeHref encountered error for link:', e && e.message ? e.message : e);
-                        }
-                        return '';
-                    }
-
-                    const href = safeHref(link);
-                    if (!href) {
-                        console.warn(`Skipping document ${i + 1} because link could not be resolved to a URL.`);
-                        if (typeof el.hide === 'function') el.hide();
-                        continue;
-                    }
-
-                    if (typeof el.html !== 'undefined') {
-                        el.html = `<a href="${href}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
-                                <span id="status-${i + 1}" style="font-size:16px; color:#ff6600; font-weight:bold;">⏳ Pending Review</span>`;
-                    }
-                    if (typeof el.show === 'function') el.show();
-                    if (typeof el.onClick === 'function') {
-                        el.onClick(() => {
-                            if (typeof el.html !== 'undefined') {
-                                el.html = `<a href="${href}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
-                                    <span id="status-${i + 1}" style="font-size:16px; color:#008000; font-weight:bold;">✅ Reviewed</span>`;
-                            }
-                        });
-                    }
+                    el.onClick(() => {
+                        el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
+                                    <span id="status-${i + 1}" style="font-size: 16px; color: #008000; font-weight: bold;">
+                                        ✅ Reviewed
+                                    </span>`;
+                    });
                 }
-            } else if (formDocumentsElems) {
-                formDocumentsElems.forEach(el => { if (el && typeof el.hide === 'function') el.hide(); });
+            } else {
+                // Hide all document elements if none
+                [formDocuments1, formDocuments2, formDocuments3, formDocuments4].forEach(el => { if (el) el.hide(); });
             }
+            // populate the form with the product name, productID, price
             if (productDisplay && productDisplayHTML.length > 0) {
-                if (typeof productDisplay.html !== 'undefined') {
-                    productDisplay.html = productDisplayHTML.map(h => `<div style="padding-bottom:10px; font-size:18px; font-weight:700;">${h}</div>`).join('<br>');
-                }
-                if (typeof productDisplay.show === 'function') productDisplay.show();
-            } else if (productDisplay && typeof productDisplay.hide === 'function') { productDisplay.hide(); }
-        }
-    }
-    // Attach handlers for all checkbox groups involved in product selection
-    ['#checkboxGroup1','#checkboxGroup2','#checkboxGroup3','#checkboxGroup4','#checkboxGroup5','#checkboxGroup6'].forEach(id => {
-        if ($w(id)) {
-            $w(id).onChange(() => {
-                selectedProducts = $w(id).value;
-                handleProductSelection(selectedProducts);
-            });
+                productDisplay.html += '<br>' + productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:700;">${htmlContent}</div>`).join('<br>');
+                productDisplay.show();
+            } else {
+                productDisplay.hide();
+            }
         }
     });
-    // Submit button handler attachment based on activeForm
-    // function attachSubmitHandler() {
-    //     if (!activeForm?.formSubmitButton) return;
-    //     activeForm.formSubmitButton.onClick(() => submitHoaForm());
-    // }
     
     // Initialize form submission handlers
     setupFormHandlers();
@@ -988,74 +898,104 @@ function setupFormHandlers() {
 async function submitHoaForm() {
     try {
         console.log('Submitting HOA Dues form...');
-        if (!activeForm) { console.warn('No active form selected.'); return; }
-        const {
-            formPropertyAddress,
-            formErrorMessage,
-            formFirstName,
-            formLastName,
-            formPhone,
-            formEmail,
-            formSignature,
-            formDocumentsElems
-        } = activeForm;
-        if (formPropertyAddress?.disable) formPropertyAddress.disable();
-        if (formErrorMessage) formErrorMessage.text = '';
+        formPropertyAddress.disable();
+        // Hide any previous error messages
+        formErrorMessage.text = '';
+        
         // Validate required fields
-        const firstName = formFirstName?.value?.trim();
-        const lastName = formLastName?.value?.trim();
-        const phone = formPhone?.value?.trim();
-        const email = formEmail?.value?.trim();
-        const signature = formSignature?.value;
-        const propertyAddress = formPropertyAddress?.value;
-        // Email validation
+        const firstName = formFirstName.value?.trim();
+        const lastName = formLastName.value?.trim();
+        const phone = formPhone.value?.trim();
+        const email = formAdultsRec.value?.trim();
+        const signature = formSignature.value;
+        const propertyAddress = formPropertyAddress.value;
+        
+        // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email || '')) {
-            if (formErrorMessage) formErrorMessage.text = 'Please enter a valid email address.';
+        if (!emailRegex.test(email)) {
+            const errorMessage = 'Please enter a valid email address.';
+            formErrorMessage.text = errorMessage;
+
             return;
         }
-        // Phone validation
+        // validate phone number format (simple check for digits only)
         const phoneRegex = /^\d{10}$/;
-        if (!phoneRegex.test(phone || '')) {
-            if (formErrorMessage) formErrorMessage.text = 'Please enter a valid 10-digit phone number.';
+        if (!phoneRegex.test(phone)) {
+            const errorMessage = 'Please enter a valid 10-digit phone number.';
+            formErrorMessage.text = errorMessage;
+
             return;
         }
-        // Document review validation
+        // Validate that all required documents have been reviewed
+        const requiredDocCount = formDocumentLinks.length;
         let allReviewed = true;
-        if (formDocumentsElems && formDocumentsElems.length) {
-            for (let i = 0; i < formDocumentLinks.length && i < formDocumentsElems.length; i++) {
-                const el = formDocumentsElems[i];
-                const html = (el && el.html) ? el.html.toLowerCase() : '';
-                if (!html.includes('reviewed')) { allReviewed = false; break; }
+        const docElems = [formDocuments1, formDocuments2, formDocuments3, formDocuments4];
+        for (let i = 0; i < requiredDocCount && i < docElems.length; i++) {
+            const el = docElems[i];
+            const html = (el && el.html) ? el.html.toLowerCase() : '';
+            if (!html.includes('reviewed')) { // requires the word 'reviewed' in element HTML
+                allReviewed = false;
+                break;
             }
         }
         if (!allReviewed) {
-            if (formErrorMessage) formErrorMessage.text = 'Please review all required documents before submitting the form.';
+            const errorMessage = 'Please review all required documents before submitting the form.';
+            formErrorMessage.text = errorMessage;
             return;
         }
-        // Build item
-        const itemToInsert = {
-            form_name: formName,
-            form_property_address: propertyAddress || '',
-            first_name: firstName || '',
-            last_name: lastName || '',
-            form_phone_number: phone || '',
-            form_email: email || '',
-            form_signature: signature || '',
-            form_product_sku_01: selectedProducts[0] || '',
-            form_product_sku_02: selectedProducts[1] || '',
-            form_product_sku_03: selectedProducts[2] || '',
-            form_product_sku_04: selectedProducts[3] || '',
-            form_product_sku_05: selectedProducts[4] || ''
+
+        
+        // Capture the product sku connected to the checkbox selection and 
+        // submit those to the form submission data. Then add those to the cart.
+        let itemToInsert = {
+            "form_name": formName, // For a text field
+            "form_property_address": propertyAddress, // Value from an input element
+            "first_name": firstName,
+            "last_name": lastName,
+            "form_phone_number": phone,
+            "form_email": email,
+            "form_signature": signature,
+            "form_product_sku_01": selectedProducts[0] || '',
+            "form_product_sku_02": selectedProducts[1] || '',
+            "form_product_sku_03": selectedProducts[2] || '',
+            "form_product_sku_04": selectedProducts[3] || '',
+            "form_product_sku_05": selectedProducts[4] || ''
         };
-        await wixData.insert(formCollectionName, itemToInsert);
-        console.log('Item inserted successfully:', itemToInsert);
-        if (productsToBuy.length === 0) { await getProductData(selectedProducts); }
-        if (productsToBuy.length > 0) { await addToCart(productsToBuy); }
+        wixData.insert(formCollectionName, itemToInsert)
+            .then((insertedItem) => {
+                console.log("Item inserted successfully:", insertedItem);
+            })
+            .catch((error) => {
+                console.error("Error inserting item:", error);
+                // Add any error handling here
+            });
+        // Show success message before redirecting
+        console.log('Form submitted successfully, adding to cart...');
+        
+        // Ensure we have product data before adding to cart
+        if (productsToBuy.length === 0) {
+            console.log('No products in productsToBuy, loading product data...');
+            await getProductData(selectedProducts);
+        }
+        
+        console.log('Products to add to cart:', productsToBuy);
+        
+        if (productsToBuy.length > 0) {
+            await addToCart(productsToBuy);
+        } else {
+            console.warn('No valid products found via dynamic lookup, add to cart failed...');
+        }
+
+        // Redirect to checkout
+        console.log('Redirecting to checkout...');
         wixLocation.to('/checkout');
+        
     } catch (error) {
         console.error('Error in function submitHoaForm:', error);
-        if (activeForm?.formErrorMessage) activeForm.formErrorMessage.text = 'Error submitting form. Please try again.';
+        
+        const errorMessage = 'Error submitting form. Please try again.';
+        formErrorMessage.text = errorMessage;
+
     }
 }
 
@@ -1110,4 +1050,5 @@ async function addToCart(productsToBuy) {
         console.error("Error adding products to cart:", error);
     }
 }
+
 
