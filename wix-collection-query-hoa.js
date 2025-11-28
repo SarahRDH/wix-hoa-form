@@ -170,6 +170,7 @@ const formElementsHoa1and2 = {
 };
 // Helper to resolve active elements for HOA dues tiers 1 and 2 form
 function getHoa1and2FormElements() {
+    console.log('getHoa1and2FormElements called');
     return {
         formPropertyAddress: $w(`#${formElementsHoa1and2.address}`),
         formErrorMessage: $w(`#${formElementsHoa1and2.error}`),
@@ -202,6 +203,7 @@ const formElementsHoa3 = {
 };
 // Helper to resolve active elements for HOA dues tier 3 form
 function getHoa3FormElements() {
+    console.log('getHoa3FormElements called');
     return {
         formPropertyAddress: $w(`#${formElementsHoa3.address}`),
         formErrorMessage: $w(`#${formElementsHoa3.error}`),
@@ -238,6 +240,7 @@ const formElementsRecMembership = {
 };
 // Helper to resolve active elements for rec membership form
 function getRecMembershipFormElements() {
+    console.log('getRecMembershipFormElements called');
     return {
         formPropertyAddress: $w(`#${formElementsRecMembership.address}`),
         formErrorMessage: $w(`#${formElementsRecMembership.error}`),
@@ -269,6 +272,7 @@ const formElementsNewKeyFob = {
 };
 // Helper to resolve active elements for new key fob form
 function getNewKeyFobFormElements() {
+    console.log('getNewKeyFobFormElements called');
     return {
         formPropertyAddress: $w(`#${formElementsNewKeyFob.address}`),
         formErrorMessage: $w(`#${formElementsNewKeyFob.error}`),
@@ -302,6 +306,7 @@ const formElementsPavilion = {
 };
 // Helper to resolve active elements for pavilion reservation form
 function getPavilionFormElements() {
+    console.log('getPavilionFormElements called');
     return {
         formPropertyAddress: $w(`#${formElementsPavilion.address}`),
         formErrorMessage: $w(`#${formElementsPavilion.error}`),
@@ -786,6 +791,7 @@ $w.onReady(function () {
 // ------------------------------------------Display the forms in the multi-state box ------------------------------------------
     // Use a switch over selected product SKUs to pick the form state (last match wins)
     let matchedState = null;
+    let getElementsFunction = null;
     //get all the checkboxGroup elements to attach onChange event handlers
     const checkboxIds = [
         'checkboxGroup2',
@@ -797,150 +803,210 @@ $w.onReady(function () {
     ];
 
     const selectProductsCheckboxes = checkboxIds.map(id => $w(`#${id}`));
-
+    console.log('selectProductsCheckboxes:', selectProductsCheckboxes);
     // Attach individual onChange handlers so any visible group will trigger processing
     selectProductsCheckboxes.forEach(cb => {
+
         if (!cb || typeof cb.onChange !== 'function') return;
         cb.onChange(async () => {
             console.log(`${cb.id} onChange triggered`);
+            
             // reset form document links and product display
             formDocumentLinks = [];
             productDisplayHTML = [];
             selectedProducts = [];
 
+            selectedProducts = cb.value || [];
+            console.log('Initial selected products from', cb.id, ':', selectedProducts);
             // Aggregate selections from all checkbox groups (some may be hidden/not shown)
-            for (const el of selectProductsCheckboxes) {
-                if (!el) continue;
-                try {
-                    const val = el.value;
-                    if (!val) continue;
-                    if (Array.isArray(val)) selectedProducts.push(...val);
-                    else if (typeof val === 'string') selectedProducts.push(val);
-                } catch (e) {
-                    console.warn('Error reading value from checkbox group', e && e.message ? e.message : e);
-                }
-            }
+            // for (const el of selectProductsCheckboxes) {
+            //     if (!el) continue;
+            //     try {
+            //         selectedProducts = el.value;
+            //         if(!selectedProducts) continue;
+            //         if (Array.isArray(selectedProducts)) selectedProducts.push(...selectedProducts);
+            //         else if (typeof selectedProducts === 'string') selectedProducts.push(selectedProducts);
+            //     } catch (e) {
+            //         console.warn('Error reading value from checkbox group', e && e.message ? e.message : e);
+            //     }
+            // }
             // remove duplicates
-            selectedProducts = Array.from(new Set(selectedProducts));
+            // selectedProducts = Array.from(new Set(selectedProducts));
             console.log('Selected products:', selectedProducts);
             formSection.expand();
 
             // determine matchedState for the aggregated selections
-            let matchedState = null;
             for (const p of selectedProducts || []) {
                 console.log('Processing selected product SKU for matchedState logic:', p);
                 switch (p) {
-                 
-                 case 'rec-center-resident':
-                 case 'rec-center-non-resident':
-                     // show Rec Center Dues form
-                     matchedState = formBoxRecMember;
-                     formName = 'rec_membership';
-                     formCollectionName = 'formSubsRecMember';
-                     getRecMembershipFormElements();
-                     break;
- 
-                 case 'hoa-dues-tier-one':
-                 case 'hoa-dues-tier-two':
-                     // show HOA Tier 1 & 2 form
-                     matchedState = formBoxHoaTier1and2;
-                     formName = 'hoa_dues_tier_one_and_two';
-                     formCollectionName = 'formSubsHoaDuesTier1and2';
-                     getHoa1and2FormElements();
-                     break;
- 
-                 case 'hoa-dues-tier-three':
-                     // show HOA Tier 3 form
-                     matchedState = formBoxHoaTier3;
-                     formName = 'hoa_dues_tier_three';
-                     formCollectionName = 'formSubsHoaDuesTier3';
-                     getHoa3FormElements();
-                     break;
- 
-                 case 'key-fob':
-                     // show Key Fob form
-                     matchedState = formBoxKeyFob;
-                     formName = 'rec_new_key_fob';
-                     formCollectionName = 'formSubsRecNewKeyFob';
-                     getNewKeyFobFormElements();
-                     break;
- 
-                 case 'pavilion-2-hrs':
-                 case 'pavilion-addl-hour':
-                 case 'pavilion-jumbo':
-                     // show Pavilion Reservation form
-                     matchedState = formBoxPavilion;
-                     formName = 'rec_reserve_pavilion';
-                     formCollectionName = 'formSubsRecReservePavilion';
-                     getPavilionFormElements();
-                     break;
- 
-                 default:
-                     // no match for this sku
-                 break;
-             }
-             }
+                
+                case 'rec-center-resident':
+                case 'rec-center-non-resident':
+                    // show Rec Center Dues form
+                    matchedState = formBoxRecMember;
+                    formName = 'rec_membership';
+                    formCollectionName = 'formSubsRecMember';
+                    getElementsFunction = getRecMembershipFormElements();
+                    break;
 
-             // If any matching state was found, display it and load product data & docs once
-             if (matchedState) {
-                 formStatebox.expand();
-                 formStatebox.changeState(matchedState);
+                case 'hoa-dues-tier-one':
+                case 'hoa-dues-tier-two':
+                    // show HOA Tier 1 & 2 form
+                    matchedState = formBoxHoaTier1and2;
+                    formName = 'hoa_dues_tier_one_and_two';
+                    formCollectionName = 'formSubsHoaDuesTier1and2';
+                    getElementsFunction = getHoa1and2FormElements();
+                    break;
 
-                 await getProductData(selectedProducts);
-                 populateFormDocuments();
+                case 'hoa-dues-tier-three':
+                case 'test-product-physical':
+                    // show HOA Tier 3 form
+                    matchedState = formBoxHoaTier3;
+                    formName = 'hoa_dues_tier_three';
+                    formCollectionName = 'formSubsHoaDuesTier3';
+                    getElementsFunction = getHoa3FormElements();
+                    break;
 
-                 if(formErrorMessage) {
-                     formErrorMessage.text = '';
-                 }
-                 if(productDisplay) {
-                     productDisplay.hide(); 
-                 }
+                case 'key-fob':
+                    // show Key Fob form
+                    matchedState = formBoxKeyFob;
+                    formName = 'rec_new_key_fob';
+                    formCollectionName = 'formSubsRecNewKeyFob';
+                    getElementsFunction = getNewKeyFobFormElements();
+                    break;
 
-                 if (formPropertyAddress) {
-                     formPropertyAddress.value = selectedAddress;
-                     formPropertyAddress.disable();
-                 }
-             }
-             
-             //populate the form documents section
-             function populateFormDocuments() {
-                 if (formDocumentLinks.length > 0) {
-                     const docElems = formDocumentsElems;
-                     // Clear and hide all first
-                     docElems.forEach(el => { if (el) { el.html = ''; el.hide(); }});
+                case 'pavilion-2-hrs':
+                case 'pavilion-addl-hour':
+                case 'pavilion-jumbo':
+                    // show Pavilion Reservation form
+                    matchedState = formBoxPavilion;
+                    formName = 'rec_reserve_pavilion';
+                    formCollectionName = 'formSubsRecReservePavilion';
+                    getElementsFunction = getPavilionFormElements();
+                    break;
 
-                     for (let i = 0; i < formDocumentLinks.length && i < docElems.length; i++) {
-                         const el = docElems[i];
-                         if (!el) continue;
-                         const link = formDocumentLinks[i];
-                         console.log(`Document ${i + 1}: ${link}`);
-                         el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
-                                     <span id="status-${i + 1}" style="font-size: 16px; color: #ff6600; font-weight: bold;">
-                                         ⏳ Pending Review
-                                     </span>`;
-                         el.show();
+                default:
+                    // no match for this sku
+                break;
+            }
+            }
 
-                         el.onClick(() => {
-                             el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
-                                         <span id="status-${i + 1}" style="font-size: 16px; color: #008000; font-weight: bold;">
-                                             ✅ Reviewed
-                                         </span>`;
-                         });
-                     }
-                 } else {
-                     // Hide all document elements if none
-                     formDocumentsElems.hide();
-                 }
-                 // populate the form with the product name, productID, price
-                 if (productDisplay && productDisplayHTML.length > 0) {
-                     productDisplay.html += '<br>' + productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:700;">${htmlContent}</div>`).join('<br>');
-                     productDisplay.show();
-                 } else {
-                     productDisplay.hide();
-                 }
-             }
-         });
-     });
+            // If any matching state was found, display it and load product data & docs once
+            if (matchedState) {
+                console.log('Displaying form for matchedState:', matchedState);    
+                formStatebox.expand();
+                formStatebox.changeState(matchedState);
+
+                // Resolve the elements object returned by the helper: the code elsewhere sometimes assigns
+                // either the function reference or the already-invoked result to getElementsFunction.
+                // Handle both cases here and then populate the module-level element variables.
+                const elements = (typeof getElementsFunction === 'function') ? getElementsFunction() : (getElementsFunction || {});
+
+                // Assign global form element references so other functions can use them
+                formPropertyAddress = elements.formPropertyAddress || null;
+                formErrorMessage = elements.formErrorMessage || null;
+                formSubmitButton = elements.formSubmitButton || null;
+                formSignature = elements.formSignature || null;
+                formDocumentsElems = elements.formDocumentsElems || [];
+                productDisplay = elements.productDisplay || null;
+                formFirstName = elements.formFirstName || null;
+                formLastName = elements.formLastName || null;
+                formEmail = elements.formEmail || null;
+                formPhone = elements.formPhone || null;
+                formAdultsRec = elements.formAdultsRec || null;
+                formDependentsRec = elements.formDependentsRec || null;
+                formFobNumbers = elements.formFobNumbers || null;
+                formHasKeyFob = elements.formHasKeyFob || null;
+                formReservationDate = elements.formReservationDate || null;
+                formStartTime = elements.formStartTime || null;
+                formTotalHours = elements.formTotalHours || null;
+                formGuestCount = elements.formGuestCount || null;
+                formPoolUse = elements.formPoolUse || null;
+                formLifeGuard = elements.formLifeGuard || null;
+
+                console.log('Resolved form elements:', {
+                    formPropertyAddress,
+                    formErrorMessage,
+                    formSubmitButton,
+                    formDocumentsElemsLength: (formDocumentsElems && formDocumentsElems.length) || 0,
+                    productDisplay
+                });
+
+                // Set the selected address on the resolved address element(s).
+                // Helpers return a single element for address in this codebase, but handle arrays defensively.
+                if (Array.isArray(formPropertyAddress)) {
+                    formPropertyAddress.forEach(fpa => {
+                        if (fpa) {
+                            fpa.value = selectedAddress;
+                            if (typeof fpa.disable === 'function') fpa.disable();
+                        }
+                    });
+                } else if (formPropertyAddress) {
+                    try {
+                        formPropertyAddress.value = selectedAddress;
+                        if (typeof formPropertyAddress.disable === 'function') formPropertyAddress.disable();
+                    } catch (e) {
+                        console.warn('Could not set formPropertyAddress value:', e);
+                    }
+                } else {
+                    console.warn('formPropertyAddress is not available for this form state');
+                }
+
+                // Re-bind submit handler now that formSubmitButton is set
+                setupFormHandlers();
+
+                await getProductData(selectedProducts);
+                populateFormDocuments();
+
+                //  if(formErrorMessage) {
+                //      formErrorMessage.text = '';
+                //  }
+                //  if(productDisplay) {
+                //      productDisplay.hide(); 
+                //  }
+
+
+            }
+            
+                //populate the form documents section - IS WORKING
+                function populateFormDocuments() {
+                    if (formDocumentLinks.length > 0) {
+                        const docElems = formDocumentsElems;
+                        // Clear and hide all first
+                        docElems.forEach(el => { if (el) { el.html = ''; el.hide(); }});
+
+                        for (let i = 0; i < formDocumentLinks.length && i < docElems.length; i++) {
+                            const el = docElems[i];
+                            if (!el) continue;
+                            const link = formDocumentLinks[i];
+                            console.log(`Document ${i + 1}: ${link}`);
+                            el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
+                                        <span id="status-${i + 1}" style="font-size: 16px; color: #ff6600; font-weight: bold;">
+                                            ⏳ Pending Review
+                                        </span>`;
+                            el.show();
+
+                            el.onClick(() => {
+                                el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
+                                            <span id="status-${i + 1}" style="font-size: 16px; color: #008000; font-weight: bold;">
+                                                ✅ Reviewed
+                                            </span>`;
+                            });
+                        }
+                    } else {
+                        // Hide all document elements if none
+                        formDocumentsElems.hide();
+                    }
+                    // populate the form with the product name, productID, price
+                    if (productDisplay && productDisplayHTML.length > 0) {
+                        productDisplay.html += '<br>' + productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:700;">${htmlContent}</div>`).join('<br>');
+                        productDisplay.show();
+                    } else {
+                        productDisplay.hide();
+                    }
+                }
+        });
+    });
     
     // Initialize form submission handlers
     setupFormHandlers();
