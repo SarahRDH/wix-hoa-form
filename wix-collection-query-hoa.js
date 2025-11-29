@@ -184,16 +184,16 @@ const formElementsHoa1and2 = {
 function getHoa1and2FormElements() {
     console.log('getHoa1and2FormElements called');
     return {
-        formPropertyAddress: $w(`#${formElementsHoa1and2.address}`),
-        formErrorMessage: $w(`#${formElementsHoa1and2.error}`),
-        formSubmitButton: $w(`#${formElementsHoa1and2.submit}`),
-        formSignature: $w(`#${formElementsHoa1and2.signature}`),
-        formDocumentsElems: formElementsHoa1and2.docs.map(id => $w(`#${id}`)),
-        productDisplay: $w(`#${formElementsHoa1and2.productDisplay}`),
-        formFirstName: $w(`#${formElementsHoa1and2.firstName}`),
-        formLastName: $w(`#${formElementsHoa1and2.lastName}`),
-        formEmail: $w(`#${formElementsHoa1and2.email}`),
-        formPhone: $w(`#${formElementsHoa1and2.phone}`)
+        address: formElementsHoa1and2.address,
+        error: formElementsHoa1and2.error,
+        submit: formElementsHoa1and2.submit,
+        signature: formElementsHoa1and2.signature,
+        docs: formElementsHoa1and2.docs,
+        productDisplay: formElementsHoa1and2.productDisplay,
+        firstName: formElementsHoa1and2.firstName,
+        lastName: formElementsHoa1and2.lastName,
+        email: formElementsHoa1and2.email,
+        phone: formElementsHoa1and2.phone
     };
 }
 
@@ -219,22 +219,22 @@ const formElementsHoa3 = {
 function getHoa3FormElements() {
     console.log('getHoa3FormElements called');
     return {
-        formPropertyAddress: $w(`#${formElementsHoa3.address}`),
-        formErrorMessage: $w(`#${formElementsHoa3.error}`),
-        formSubmitButton: $w(`#${formElementsHoa3.submit}`),
-        formSignature: $w(`#${formElementsHoa3.signature}`),
-        formDocumentsElems: formElementsHoa3.docs.map(id => $w(`#${id}`)),
-        productDisplay: $w(`#${formElementsHoa3.productDisplay}`),
-        formFirstName: $w(`#${formElementsHoa3.firstName}`),
-        formLastName: $w(`#${formElementsHoa3.lastName}`),
-        formEmail: $w(`#${formElementsHoa3.email}`),
-        formPhone: $w(`#${formElementsHoa3.phone}`),
-        formAdultsRec: $w(`#${formElementsHoa3.adultsRec}`),
-        formDependentsRec: $w(`#${formElementsHoa3.dependentsRec}`),
-        formNameAgeBox: $w(`#${formElementsHoa3.nameAgeBox}`),
-        formFobNumbers: formElementsHoa3.fobs.map(id => $w(`#${id}`)),
-        formHasKeyFob: $w(`#${formElementsHoa3.hasFob}`),
-        formKeyFobBox: $w(`#${formElementsHoa3.keyFobBox}`)
+        address: formElementsHoa3.address,
+        error: formElementsHoa3.error,
+        submit: formElementsHoa3.submit,
+        signature: formElementsHoa3.signature,
+        docs: formElementsHoa3.docs,
+        productDisplay: formElementsHoa3.productDisplay,
+        firstName: formElementsHoa3.firstName,
+        lastName: formElementsHoa3.lastName,
+        email: formElementsHoa3.email,
+        phone: formElementsHoa3.phone,
+        adultsRec: formElementsHoa3.adultsRec,
+        dependentsRec: formElementsHoa3.dependentsRec,
+        nameAgeBox: formElementsHoa3.nameAgeBox,
+        fobs: formElementsHoa3.fobs,
+        hasFob: formElementsHoa3.hasFob,
+        keyFobBox: formElementsHoa3.keyFobBox
     };
 }
 
@@ -260,22 +260,22 @@ const formElementsRecMembership = {
 function getRecMembershipFormElements() {
     console.log('getRecMembershipFormElements called');
     return {
-        formPropertyAddress: $w(`#${formElementsRecMembership.address}`),
-        formErrorMessage: $w(`#${formElementsRecMembership.error}`),
-        formSubmitButton: $w(`#${formElementsRecMembership.submit}`),
-        formSignature: $w(`#${formElementsRecMembership.signature}`),
-        formDocumentsElems: formElementsRecMembership.docs.map(id => $w(`#${id}`)),
-        productDisplay: $w(`#${formElementsRecMembership.productDisplay}`), 
-        formFirstName: $w(`#${formElementsRecMembership.firstName}`),
-        formLastName: $w(`#${formElementsRecMembership.lastName}`),
-        formEmail: $w(`#${formElementsRecMembership.email}`),
-        formPhone: $w(`#${formElementsRecMembership.phone}`),
-        formAdultsRec: $w(`#${formElementsRecMembership.adultsRec}`),
-        formDependentsRec: $w(`#${formElementsRecMembership.dependentsRec}`),
-        formNameAgeBox: $w(`#${formElementsRecMembership.nameAgeBox}`),
-        formFobNumbers: formElementsRecMembership.fobs.map(id => $w(`#${id}`)),
-        formHasKeyFob: $w(`#${formElementsRecMembership.hasFob}`),
-        formKeyFobBox: $w(`#${formElementsRecMembership.keyFobBox}`)
+        address: formElementsRecMembership.address,
+        error: formElementsRecMembership.error,
+        submit: formElementsRecMembership.submit,
+        signature: formElementsRecMembership.signature,
+        docs: formElementsRecMembership.docs,
+        productDisplay: formElementsRecMembership.productDisplay, 
+        firstName: formElementsRecMembership.firstName,
+        lastName: formElementsRecMembership.lastName,
+        email: formElementsRecMembership.email,
+        phone: formElementsRecMembership.phone,
+        adultsRec: formElementsRecMembership.adultsRec,
+        dependentsRec: formElementsRecMembership.dependentsRec,
+        nameAgeBox: formElementsRecMembership.nameAgeBox,
+        fobs: formElementsRecMembership.fobs,
+        hasFob: formElementsRecMembership.hasFob,
+        keyFobBox: formElementsRecMembership.keyFobBox
     };
 }
 
@@ -295,16 +295,16 @@ const formElementsNewKeyFob = {
 function getNewKeyFobFormElements() {
     console.log('getNewKeyFobFormElements called');
     return {
-        formPropertyAddress: $w(`#${formElementsNewKeyFob.address}`),
-        formErrorMessage: $w(`#${formElementsNewKeyFob.error}`),
-        formSubmitButton: $w(`#${formElementsNewKeyFob.submit}`),
-        productDisplay: $w(`#${formElementsNewKeyFob.productDisplay}`),
-        formFirstName: $w(`#${formElementsNewKeyFob.firstName}`),
-        formLastName: $w(`#${formElementsNewKeyFob.lastName}`),
-        formEmail: $w(`#${formElementsNewKeyFob.email}`),
-        formPhone: $w(`#${formElementsNewKeyFob.phone}`),
-        formFobQuantity: $w(`#${formElementsNewKeyFob.fobQuantity}`),
-        formNameAgeBox: $w(`#${formElementsNewKeyFob.nameAgeBox}`)
+        address: formElementsNewKeyFob.address,
+        error: formElementsNewKeyFob.error,
+        submit: formElementsNewKeyFob.submit,
+        productDisplay: formElementsNewKeyFob.productDisplay,
+        firstName: formElementsNewKeyFob.firstName,
+        lastName: formElementsNewKeyFob.lastName,
+        email: formElementsNewKeyFob.email,
+        phone: formElementsNewKeyFob.phone,
+        fobQuantity: formElementsNewKeyFob.fobQuantity,
+        nameAgeBox: formElementsNewKeyFob.nameAgeBox
     };
 }
 
@@ -330,23 +330,52 @@ const formElementsPavilion = {
 function getPavilionFormElements() {
     console.log('getPavilionFormElements called');
     return {
-        formPropertyAddress: $w(`#${formElementsPavilion.address}`),
-        formErrorMessage: $w(`#${formElementsPavilion.error}`),
-        formSubmitButton: $w(`#${formElementsPavilion.submit}`),
-        productDisplay: $w(`#${formElementsPavilion.productDisplay}`),
-        formFirstName: $w(`#${formElementsPavilion.firstName}`),
-        formLastName: $w(`#${formElementsPavilion.lastName}`),
-        formEmail: $w(`#${formElementsPavilion.email}`),
-        formPhone: $w(`#${formElementsPavilion.phone}`),
-        formReservationDate: $w(`#${formElementsPavilion.reservationDate}`),
-        formStartTime: $w(`#${formElementsPavilion.startTime}`),
-        formTotalHours: $w(`#${formElementsPavilion.totalHours}`),
-        formGuestCount: $w(`#${formElementsPavilion.guestCount}`),
-        formPoolUse: $w(`#${formElementsPavilion.poolUse}`),
-        formLifeGuard: $w(`#${formElementsPavilion.lifeGuard}`),
-        formDocumentsElems: formElementsPavilion.docs.map(id => $w(`#${id}`)),
-        formSignature: $w(`#${formElementsPavilion.signature}`)
+        address: formElementsPavilion.address,
+        error: formElementsPavilion.error,
+        submit: formElementsPavilion.submit,
+        docs: formElementsPavilion.docs,
+        signature: formElementsPavilion.signature,
+        productDisplay: formElementsPavilion.productDisplay,
+        firstName: formElementsPavilion.firstName,
+        lastName: formElementsPavilion.lastName,
+        email: formElementsPavilion.email,
+        phone: formElementsPavilion.phone,
+        reservationDate: formElementsPavilion.reservationDate,
+        startTime: formElementsPavilion.startTime,
+        totalHours: formElementsPavilion.totalHours,
+        guestCount: formElementsPavilion.guestCount,
+        poolUse: formElementsPavilion.poolUse,
+        lifeGuard: formElementsPavilion.lifeGuard
     };
+}
+
+// New central resolver: take an ID-map (strings/arrays) and populate module-level element variables
+function resolveAndAssignFormElements(idMap) {
+    const getEl = id => (id ? $w(`#${id}`) : null);
+    const getElsArray = arr => (Array.isArray(arr) ? arr.map(id => $w(`#${id}`)) : []);
+
+    formPropertyAddress = getEl(idMap.address);
+    formErrorMessage = getEl(idMap.error);
+    formSubmitButton = getEl(idMap.submit);
+    formSignature = getEl(idMap.signature);
+    formDocumentsElems = getElsArray(idMap.docs || []);
+    productDisplay = getEl(idMap.productDisplay);
+    formFirstName = getEl(idMap.firstName);
+    formLastName = getEl(idMap.lastName);
+    formEmail = getEl(idMap.email);
+    formPhone = getEl(idMap.phone);
+    formAdultsRec = getEl(idMap.adultsRec);
+    formDependentsRec = getEl(idMap.dependentsRec);
+    formNameAgeBox = getEl(idMap.nameAgeBox);
+    formFobNumbers = getElsArray(idMap.fobs || []);
+    formHasKeyFob = getEl(idMap.hasFob);
+    formKeyFobBox = getEl(idMap.keyFobBox);
+    formReservationDate = getEl(idMap.reservationDate);
+    formStartTime = getEl(idMap.startTime);
+    formTotalHours = getEl(idMap.totalHours);
+    formGuestCount = getEl(idMap.guestCount);
+    formPoolUse = getEl(idMap.poolUse);
+    formLifeGuard = getEl(idMap.lifeGuard);
 }
 
 // ------------------------------------------- End of HTML elements and helper functions ------------------------------------------
@@ -883,31 +912,20 @@ $w.onReady(function () {
                 // Resolve the elements object returned by the helper: the code elsewhere sometimes assigns
                 // either the function reference or the already-invoked result to getElementsFunction.
                 // Handle both cases here and then populate the module-level element variables.
-                const elements = (typeof getElementsFunction === 'function') ? getElementsFunction() : (getElementsFunction || {});
+                let idMap = {};
+                if (typeof getElementsFunction === 'function') {
+                    try {
+                        idMap = getElementsFunction();
+                    } catch (e) {
+                        console.warn('getElementsFunction threw when invoked; falling back to value or empty object', e);
+                        idMap = getElementsFunction || {};
+                    }
+                } else {
+                    idMap = getElementsFunction || {};
+                }
 
-                // Assign global form element references so other functions can use them
-                formPropertyAddress = elements.formPropertyAddress || null;
-                formErrorMessage = elements.formErrorMessage || null;
-                formSubmitButton = elements.formSubmitButton || null;
-                formSignature = elements.formSignature || null;
-                formDocumentsElems = elements.formDocumentsElems || [];
-                productDisplay = elements.productDisplay || null;
-                formFirstName = elements.formFirstName || null;
-                formLastName = elements.formLastName || null;
-                formEmail = elements.formEmail || null;
-                formPhone = elements.formPhone || null;
-                formAdultsRec = elements.formAdultsRec || null;
-                formDependentsRec = elements.formDependentsRec || null;
-                formNameAgeBox = elements.formNameAgeBox || null;
-                formFobNumbers = elements.formFobNumbers || [];
-                formHasKeyFob = elements.formHasKeyFob || null;
-                formKeyFobBox = elements.formKeyFobBox || null;
-                formReservationDate = elements.formReservationDate || null;
-                formStartTime = elements.formStartTime || null;
-                formTotalHours = elements.formTotalHours || null;
-                formGuestCount = elements.formGuestCount || null;
-                formPoolUse = elements.formPoolUse || null;
-                formLifeGuard = elements.formLifeGuard || null;
+                // Use centralized resolver to populate module-level element variables
+                resolveAndAssignFormElements(idMap);
 
                 console.log('first few resolved form elements:', {
                     formPropertyAddress,
@@ -922,6 +940,28 @@ $w.onReady(function () {
                     try {
                         formPropertyAddress.value = selectedAddress;
                         if (typeof formPropertyAddress.disable === 'function') formPropertyAddress.disable();
+
+                        // Enforce disabled state: if the element supports onChange, revert any user edits
+                        // and re-disable the input. This ensures the address cannot be changed once the
+                        // form is displayed even if the element becomes enabled elsewhere.
+                        try {
+                            if (typeof formPropertyAddress.onChange === 'function') {
+                                formPropertyAddress.onChange(() => {
+                                    try {
+                                        if (formPropertyAddress.value !== selectedAddress) {
+                                            formPropertyAddress.value = selectedAddress;
+                                        }
+                                        if (typeof formPropertyAddress.disable === 'function') {
+                                            formPropertyAddress.disable();
+                                        }
+                                    } catch (e2) {
+                                        console.warn('Could not enforce disabled state on formPropertyAddress:', e2);
+                                    }
+                                });
+                            }
+                        } catch (eOn) {
+                            // Element may not support onChange; ignore silently
+                        }
                     } catch (e) {
                         console.warn('Could not set formPropertyAddress value:', e);
                     }
