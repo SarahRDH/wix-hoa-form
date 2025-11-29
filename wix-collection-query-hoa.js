@@ -357,7 +357,8 @@ let activeForm = null; // the active form elements object
 let getProductData; // will be assigned inside $w.onReady so it's accessible globally
 
 $w.onReady(function () {
-    // Get all the product data for the product selected by the user
+    // Get all the product data from the Products Rich Content Collection for the product selected by the user
+    // If changes to the products are made, the Products Rich Content Collection must be updated accordingly. This includes documents and sku and product IDs.
     async function getProductData(selectedProducts) {
         try {
             console.log('getProductData called with:', selectedProducts);
@@ -387,7 +388,7 @@ $w.onReady(function () {
             }  
             const selections = Array.isArray(selectedProducts) ? selectedProducts : [];
             console.log('Processing selected products:', selections);
-            // Loop through selected products and match against collection items
+            // Loop through selected products and match against products rich content collection items
             for (const sel of selections) {
                 console.log('Trying to match selected product:', sel);
 
@@ -934,7 +935,7 @@ $w.onReady(function () {
 
             }
             
-            //populate the form documents section - IS WORKING
+            //populate the form documents section
             function populateFormDocuments() {
                 if(formKeyFobBox) {
                     formKeyFobBox.collapse();
@@ -1016,6 +1017,137 @@ function setupFormHandlers() {
     }
 }
 
+// New: validateHoaForm performs all form-field validation and returns fobNumbers when valid
+async function validateHoaForm({ firstName, lastName, phone, email, signature, propertyAddress } = {}) {
+    try {
+        // Validate required fields are not empty
+        if (!firstName) {
+            const errorMessage = 'Please enter your first name.';
+            if (formErrorMessage) formErrorMessage.text = errorMessage;
+            return { valid: false };
+        }
+        if (!lastName) {
+            const errorMessage = 'Please enter your last name.';
+            if (formErrorMessage) formErrorMessage.text = errorMessage;
+            return { valid: false };
+        }
+        if (!phone) {
+            const errorMessage = 'Please enter your phone number.';
+            if (formErrorMessage) formErrorMessage.text = errorMessage;
+            return { valid: false };
+        }
+        if (!email) {
+            const errorMessage = 'Please enter your email address.';
+            if (formErrorMessage) formErrorMessage.text = errorMessage;
+            return { valid: false };
+        }
+        if (!signature) {
+            const errorMessage = 'Please provide your signature.';
+            if (formErrorMessage) formErrorMessage.text = errorMessage;
+            return { valid: false };
+        }
+        
+        if (formHasKeyFob) {
+            if (formHasKeyFob.value === '') {
+                const errorMessage = 'Please indicate whether you have key fobs.';
+                if (formErrorMessage) formErrorMessage.text = errorMessage;
+                return { valid: false };
+            } else if (formHasKeyFob.value === 'Yes' || formHasKeyFob.value === 'No but wants key fob') {
+                // User indicated they have key fobs or want new ones; ensure name and age box is filled
+                if (formNameAgeBox) {
+                    if (formAdultsRec && formAdultsRec.value === '') {
+                        const errorMessage = 'Please list the names and ages of adults using the rec center and these key fobs.';
+                        if (formErrorMessage) formErrorMessage.text = errorMessage;
+                        return { valid: false };
+                    }
+                    if (formDependentsRec && formDependentsRec.value === '') {
+                        const errorMessage = 'Please list the names and ages of dependents using the rec center and these key fobs.';
+                        if (formErrorMessage) formErrorMessage.text = errorMessage;
+                        return { valid: false };
+                    }
+                }
+            }
+        }
+
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            const errorMessage = 'Please enter a valid email address.';
+            if (formErrorMessage) formErrorMessage.text = errorMessage;
+            return { valid: false };
+        }
+
+        // validate phone number format (simple check for digits only)
+        const phoneRegex = /^\d{10}$/;
+        if (!phoneRegex.test(phone)) {
+            const errorMessage = 'Please enter a valid 10-digit phone number.';
+            if (formErrorMessage) formErrorMessage.text = errorMessage;
+            return { valid: false };
+        }
+
+        // Prepare an array to hold key fob numbers (accessible later when inserting the form record)
+        let fobNumbers = [];
+
+        // Validate that the fob numbers are provided if user indicated they have key fobs
+        if (formHasKeyFob && formHasKeyFob.value === 'Yes') {
+            // loop through the fob numbers and ensure they are numeric and of correct length, 5 digits
+            const fobRegex = /^\d{5}$/;
+            const fobElems = formFobNumbers || [];
+            for (let i = 0; i < fobElems.length; i++) {
+                const fobNumber = (fobElems[i] && typeof fobElems[i].value === 'string') ? fobElems[i].value.trim() : '';
+                if (!fobNumber) {
+                    // If none of the fob fields have been provided, show an error only after checking the last field.
+                    // Skip empty entries until the final iteration; if no valid fobs were collected by then, show message.
+                    if (i === fobElems.length - 1 && fobNumbers.length === 0) {
+                        if (formErrorMessage) formErrorMessage.text = 'Please provide your key fob numbers.';
+                        return { valid: false };
+                    }
+                    continue;
+                }
+                if (!fobRegex.test(fobNumber)) {
+                    if (formErrorMessage) formErrorMessage.text = `"${fobNumber}" is not a valid key fob number. Each key fob number should be exactly 5 digits.`;
+                    return { valid: false };
+                }
+                fobNumbers.push(fobNumber);
+            }
+
+            // Ensure we have 10 slots (fill with empty strings if fewer provided)
+            while (fobNumbers.length < 10) {
+                fobNumbers.push('');
+            }
+        } else {
+            // If user does not indicate they have key fobs, ensure fobNumbers is an array of 10 empty strings
+            fobNumbers = new Array(10).fill('');
+        }
+
+        // Validate that all required documents have been reviewed and clicked on
+        const requiredDocCount = formDocumentLinks.length;
+        let allReviewed = true;
+        const docElems = formDocumentsElems;
+        for (let i = 0; i < requiredDocCount && i < docElems.length; i++) {
+            const el = docElems[i];
+            const html = (el && el.html) ? el.html.toLowerCase() : '';
+            if (!html.includes('reviewed')) { // requires the word 'reviewed' in element HTML
+                allReviewed = false;
+                break;
+            }
+        }
+        if (!allReviewed) {
+            const errorMessage = 'Please review all required documents before submitting the form.';
+            if (formErrorMessage) formErrorMessage.text = errorMessage;
+            return { valid: false };
+        }
+
+        return { valid: true, fobNumbers };
+
+    } catch (error) {
+        console.error('Error in validateHoaForm:', error);
+        if (formErrorMessage) formErrorMessage.text = 'Error validating form. Please check your entries.';
+        return { valid: false };
+    }
+}
+
 // Function to submit HOA form without using the submit connection to the button in the Wix UI
 async function submitHoaForm() {
     try {
@@ -1031,73 +1163,18 @@ async function submitHoaForm() {
         const email = formEmail.value?.trim();
         const signature = formSignature.value;
         const propertyAddress = formPropertyAddress.value;
+        const adultsBox = formAdultsRec ? formAdultsRec.value : null;
+        const dependentsBox = formDependentsRec ? formDependentsRec.value : null;
+        const hasKeyFob = formHasKeyFob ? formHasKeyFob.value : null;
 
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            const errorMessage = 'Please enter a valid email address.';
-            formErrorMessage.text = errorMessage;
-
-            return;
-        }
-        // validate phone number format (simple check for digits only)
-        const phoneRegex = /^\d{10}$/;
-        if (!phoneRegex.test(phone)) {
-            const errorMessage = 'Please enter a valid 10-digit phone number.';
-            formErrorMessage.text = errorMessage;
-
-            return;
-        }
-        // Prepare an array to hold key fob numbers (accessible later when inserting the form record)
+        // Use the extracted validation function; it must succeed before proceeding
         let fobNumbers = [];
+        const validation = await validateHoaForm({ firstName, lastName, phone, email, signature, propertyAddress, adultsBox, dependentsBox });
+        if (!validation || !validation.valid) {
+            return;
+        }
+        fobNumbers = validation.fobNumbers || [];
 
-        // Validate that the fob numbers are provided if user indicated they have key fobs
-        if (formHasKeyFob && formHasKeyFob.value === 'Yes') {
-            // loop through the fob numbers and ensure they are numeric and of correct length, 5 digits
-            const fobRegex = /^\d{5}$/;
-            const fobElems = formFobNumbers || [];
-            for (let i = 0; i < fobElems.length; i++) {
-                const fobNumber = (fobElems[i] && typeof fobElems[i].value === 'string') ? fobElems[i].value.trim() : '';
-                if (!fobNumber) {
-                    // If none of the fob fields have been provided, show an error only after checking the last field.
-                    // Skip empty entries until the final iteration; if no valid fobs were collected by then, show message.
-                    if (i === fobElems.length - 1 && fobNumbers.length === 0) {
-                        formErrorMessage.text = 'Please provide your key fob numbers.';
-                        return;
-                    }
-                    continue;
-                }
-                if (!fobRegex.test(fobNumber)) {
-                    formErrorMessage.text = `Please enter a valid key fob number: ${fobNumber}. Each key fob number should be exactly 5 digits.`;
-                    return;
-                }
-                fobNumbers.push(fobNumber);
-            }
-
-            // Ensure we have 10 slots (fill with empty strings if fewer provided)
-            while (fobNumbers.length < 10) {
-                fobNumbers.push('');
-            }
-        } else {
-            // If user does not indicate they have key fobs, ensure fobNumbers is an array of 10 empty strings
-            fobNumbers = new Array(10).fill('');
-        }
-        // Validate that all required documents have been reviewed and clicked on
-        const requiredDocCount = formDocumentLinks.length;
-        let allReviewed = true;
-        const docElems = formDocumentsElems;
-        for (let i = 0; i < requiredDocCount && i < docElems.length; i++) {
-            const el = docElems[i];
-            const html = (el && el.html) ? el.html.toLowerCase() : '';
-            if (!html.includes('reviewed')) { // requires the word 'reviewed' in element HTML
-                allReviewed = false;
-                break;
-            }
-        }
-        if (!allReviewed) {
-            const errorMessage = 'Please review all required documents before submitting the form.';
-            formErrorMessage.text = errorMessage;
-        }
         console.log('Selected products to submit:', selectedProducts);
         let itemToInsert = {
             "form_name": formName, // For a text field
@@ -1107,6 +1184,8 @@ async function submitHoaForm() {
             "form_phone_number": phone,
             "form_email": email,
             "form_signature": signature,
+            "form_adults": adultsBox,
+            "form_dependents": dependentsBox,
             "form_product_sku_01": Array.isArray(selectedProducts) ? selectedProducts.join(', ') : (selectedProducts || ''), // Join all selected SKUs into a single string
             "form_key_fob_01": fobNumbers[0] || '',
             "form_key_fob_02": fobNumbers[1] || '',
@@ -1117,7 +1196,9 @@ async function submitHoaForm() {
             "form_key_fob_07": fobNumbers[6] || '',
             "form_key_fob_08": fobNumbers[7] || '',
             "form_key_fob_09": fobNumbers[8] || '',
-            "form_key_fob_10": fobNumbers[9] || ''
+            "form_key_fob_10": fobNumbers[9] || '',
+            "form_has_key_fob": hasKeyFob,
+            "form_documents_signed": formDocumentLinks.join(', ') // Join all document links into a single string
         };
         wixData.insert(formCollectionName, itemToInsert)
             .then((insertedItem) => {
