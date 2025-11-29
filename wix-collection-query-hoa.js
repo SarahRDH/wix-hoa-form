@@ -156,6 +156,7 @@ let formEmail = null;
 let formPhone = null;
 let formAdultsRec = null;
 let formDependentsRec = null;
+let formNameAgeBox = null;
 let formFobNumbers = null;
 let formHasKeyFob = null;
 let formFobQuantity = null;
@@ -165,6 +166,7 @@ let formTotalHours = null;
 let formGuestCount = null;
 let formPoolUse = null;
 let formLifeGuard = null;
+let formKeyFobBox = null;
 
 const formElementsHoa1and2 = {
     address: 'input5',
@@ -208,8 +210,10 @@ const formElementsHoa3 = {
     phone: 'input9',
     adultsRec: 'adultsBox',
     dependentsRec: 'dependentsBox',
+    nameAgeBox: 'namesAgesBox',
     fobs: ['input11', 'input12', 'input13', 'input14', 'input15', 'input16', 'input17', 'input18', 'input19', 'input20'],
-    hasFob: 'radioGroup3'
+    hasFob: 'radioGroup3',
+    keyFobBox: 'keyFobBox'
 };
 // Helper to resolve active elements for HOA dues tier 3 form
 function getHoa3FormElements() {
@@ -227,8 +231,10 @@ function getHoa3FormElements() {
         formPhone: $w(`#${formElementsHoa3.phone}`),
         formAdultsRec: $w(`#${formElementsHoa3.adultsRec}`),
         formDependentsRec: $w(`#${formElementsHoa3.dependentsRec}`),
+        formNameAgeBox: $w(`#${formElementsHoa3.nameAgeBox}`),
         formFobNumbers: formElementsHoa3.fobs.map(id => $w(`#${id}`)),
-        formHasKeyFob: $w(`#${formElementsHoa3.hasFob}`)
+        formHasKeyFob: $w(`#${formElementsHoa3.hasFob}`),
+        formKeyFobBox: $w(`#${formElementsHoa3.keyFobBox}`)
     };
 }
 
@@ -244,9 +250,11 @@ const formElementsRecMembership = {
     email: 'input32',
     phone: 'input34',
     adultsRec: 'adultsBox1',
-    dependentsRec: 'dependentsBox1',    
+    dependentsRec: 'dependentsBox1', 
+    nameAgeBox: 'namesAgesBox1',   
     fobs: ['input30', 'input29', 'input28', 'input27', 'input26', 'input25', 'input24', 'input23', 'input22', 'input21'],
-    hasFob: 'radioGroup4'
+    hasFob: 'radioGroup4',
+    keyFobBox: 'keyFobBox1'
 };
 // Helper to resolve active elements for rec membership form
 function getRecMembershipFormElements() {
@@ -264,8 +272,10 @@ function getRecMembershipFormElements() {
         formPhone: $w(`#${formElementsRecMembership.phone}`),
         formAdultsRec: $w(`#${formElementsRecMembership.adultsRec}`),
         formDependentsRec: $w(`#${formElementsRecMembership.dependentsRec}`),
+        formNameAgeBox: $w(`#${formElementsRecMembership.nameAgeBox}`),
         formFobNumbers: formElementsRecMembership.fobs.map(id => $w(`#${id}`)),
-        formHasKeyFob: $w(`#${formElementsRecMembership.hasFob}`)
+        formHasKeyFob: $w(`#${formElementsRecMembership.hasFob}`),
+        formKeyFobBox: $w(`#${formElementsRecMembership.keyFobBox}`)
     };
 }
 
@@ -278,7 +288,8 @@ const formElementsNewKeyFob = {
     lastName: 'input48',
     email: 'input47',
     phone: 'input49',
-    fobQuantity: 'fobQty'
+    fobQuantity: 'fobQty',
+    nameAgeBox: 'namesAgesBox2'
 };
 // Helper to resolve active elements for new key fob form
 function getNewKeyFobFormElements() {
@@ -292,7 +303,8 @@ function getNewKeyFobFormElements() {
         formLastName: $w(`#${formElementsNewKeyFob.lastName}`),
         formEmail: $w(`#${formElementsNewKeyFob.email}`),
         formPhone: $w(`#${formElementsNewKeyFob.phone}`),
-        formFobQuantity: $w(`#${formElementsNewKeyFob.fobQuantity}`)
+        formFobQuantity: $w(`#${formElementsNewKeyFob.fobQuantity}`),
+        formNameAgeBox: $w(`#${formElementsNewKeyFob.nameAgeBox}`)
     };
 }
 
@@ -339,29 +351,10 @@ function getPavilionFormElements() {
 
 // ------------------------------------------- End of HTML elements and helper functions ------------------------------------------
 
-// Lightweight loading helpers. Add a Box (e.g., #loadingBox) and optional Text (#loadingText) on the page.
-// const loaderConfig = { boxId: '#loadingBox', textId: '#loadingText' };
-// function showLoading(message) {
-//     try {
-//         const box = $w(loaderConfig.boxId);
-//         const txt = $w(loaderConfig.textId);
-//         if (txt && typeof txt.text !== 'undefined' && message) txt.text = message;
-//         else if (txt && typeof txt.html !== 'undefined' && message) txt.html = `<div>${message}</div>`;
-//         if (box && typeof box.show === 'function') box.show();
-//     } catch (e) { /* no-op if loader elements are not on this page */ }
-// }
-// function hideLoading() {
-//     try {
-//         const box = $w(loaderConfig.boxId);
-//         if (box && typeof box.hide === 'function') box.hide();
-//     } catch (e) { /* no-op */ }
-// }
-
 let formCollectionName = ''; // the data collection to submit the form data to
 let formName = ''; // the name of the form the user filled out
 let activeForm = null; // the active form elements object
 let getProductData; // will be assigned inside $w.onReady so it's accessible globally
-
 
 $w.onReady(function () {
     // Get all the product data for the product selected by the user
@@ -660,9 +653,6 @@ $w.onReady(function () {
                     tierNumber = '1';
                     selectProductStatebox.changeState('isHoaMemberIsTier1');
                     const radioGroup11 = $w('#radioGroup11'); // checkbox for user to select products
-                    // getRecMembershipFormElements();
-                    // getPavilionFormElements();
-                    // getNewKeyFobFormElements();
                     
                     if(hh?.rec_dues_paid) {
                         // HOA and Rec dues already paid - only show rec products
@@ -671,8 +661,6 @@ $w.onReady(function () {
                     } else {
                         // HOA paid but rec dues not paid - only show rec dues
                         radioGroup11.options = availableHoaMemberTier1and2Products;
-                        // formName = 'rec_membership';
-                        // formCollectionName = 'formSubsRecMember';
                     }
                     break;
                 }
@@ -682,9 +670,6 @@ $w.onReady(function () {
                     tierNumber = '2';
                     selectProductStatebox.changeState('isHoaMemberIsTier2');
                     const radioGroup13 = $w('#radioGroup13'); // checkbox for user to select products
-                    // getRecMembershipFormElements();
-                    // getPavilionFormElements();
-                    // getNewKeyFobFormElements();
                     
                     if(hh?.rec_dues_paid) {
                         // HOA and Rec dues already paid - only show rec products
@@ -693,8 +678,6 @@ $w.onReady(function () {
                     } else {
                         // HOA paid but rec dues not paid - only show rec dues
                         radioGroup13.options = availableHoaMemberTier1and2Products;
-                        // formName = 'rec_membership';
-                        // formCollectionName = 'formSubsRecMember';
                     }
                     break;
                 }
@@ -707,9 +690,6 @@ $w.onReady(function () {
                     isRecMember = true;
                     // Tier 3 rec dues included with HOA dues - only show rec products
                     radioGroup15.options = availableRecMemberProducts;
-                    // We don't know what form to show until they choose a product - leave formName and formCollectionName empty for now
-                    // getNewKeyFobFormElements();
-                    // getPavilionFormElements();
 
                     break;
                 }
@@ -741,7 +721,6 @@ $w.onReady(function () {
                     const radioGroup10 = $w('#radioGroup10');
                     // Only show available options - HOA Dues only
                     radioGroup10.options = availableHoaTier1Products;
-                    // getHoa1and2FormElements();
 
                     if (isUnit10) {
                         // Add Unit 10 product option
@@ -761,7 +740,6 @@ $w.onReady(function () {
                     
                     // Only show available options - HOA Dues only
                     radioGroup12.options = availableHoaTier2Products;
-                    // getHoa1and2FormElements();
 
                     if (isUnit10) {
                         // Add Unit 10 product option
@@ -781,7 +759,6 @@ $w.onReady(function () {
                     console.log('radioGroup14:', radioGroup14, 'statebox:', selectProductStatebox);
                     // Only show available options - HOA Dues only
                     radioGroup14.options = availableHoaTier3Products;
-                    // getHoa3FormElements();
 
                     if (isUnit10) {
                         // Add Unit 10 product option
@@ -806,8 +783,8 @@ $w.onReady(function () {
     // Use a switch over selected product SKUs to pick the form state (last match wins)
     let matchedState = null;
     let getElementsFunction = null;
-    //get all the checkboxGroup elements to attach onChange event handlers
-    const checkboxIds = [
+    //get all the radioGroup elements (contain the products) to attach onChange event handlers
+    const radioGroupIds = [
         'radioGroup11',
         'radioGroup13',
         'radioGroup15',
@@ -818,7 +795,7 @@ $w.onReady(function () {
         'radioGroup17'  // non-resident is rec member
     ];
 
-    const selectProductsCheckboxes = checkboxIds.map(id => $w(`#${id}`));
+    const selectProductsCheckboxes = radioGroupIds.map(id => $w(`#${id}`));
     console.log('selectProductsCheckboxes:', selectProductsCheckboxes);
     // Attach individual onChange handlers so any visible group will trigger processing
     selectProductsCheckboxes.forEach(cb => {
@@ -868,7 +845,7 @@ $w.onReady(function () {
                         // show HOA Tier 3 form
                         matchedState = formBoxHoaTier3;
                         formName = 'hoa_dues_tier_three';
-                        formCollectionName = 'formSubsHoaDuesTier3';
+                        formCollectionName = 'FormSubsHoaDuesTier3';
                         getElementsFunction = getHoa3FormElements();
                         break;
 
@@ -920,8 +897,10 @@ $w.onReady(function () {
                 formPhone = elements.formPhone || null;
                 formAdultsRec = elements.formAdultsRec || null;
                 formDependentsRec = elements.formDependentsRec || null;
-                formFobNumbers = elements.formFobNumbers || null;
+                formNameAgeBox = elements.formNameAgeBox || null;
+                formFobNumbers = elements.formFobNumbers || [];
                 formHasKeyFob = elements.formHasKeyFob || null;
+                formKeyFobBox = elements.formKeyFobBox || null;
                 formReservationDate = elements.formReservationDate || null;
                 formStartTime = elements.formStartTime || null;
                 formTotalHours = elements.formTotalHours || null;
@@ -953,56 +932,72 @@ $w.onReady(function () {
                 await getProductData(selectedProducts);
                 populateFormDocuments();
 
-                //  if(formErrorMessage) {
-                //      formErrorMessage.text = '';
-                //  }
-                //  if(productDisplay) {
-                //      productDisplay.hide(); 
-                //  }
-
-
             }
             
-                //populate the form documents section - IS WORKING
-                function populateFormDocuments() {
-                    formErrorMessage.text = '';
-                    if (typeof formPropertyAddress.disable === 'function') formPropertyAddress.disable();
-
-                    if (formDocumentLinks.length > 0) {
-                        const docElems = formDocumentsElems;
-                        // Clear and hide all first
-                        docElems.forEach(el => { if (el) { el.html = ''; el.hide(); }});
-
-                        for (let i = 0; i < formDocumentLinks.length && i < docElems.length; i++) {
-                            const el = docElems[i];
-                            if (!el) continue;
-                            const link = formDocumentLinks[i];
-                            console.log(`Document ${i + 1}: ${link}`);
-                            el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
-                                        <span id="status-${i + 1}" style="font-size: 16px; color: #ff6600; font-weight: bold;">
-                                            ⏳ Pending Review
-                                        </span>`;
-                            el.show();
-
-                            el.onClick(() => {
-                                el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
-                                            <span id="status-${i + 1}" style="font-size: 16px; color: #008000; font-weight: bold;">
-                                                ✅ Reviewed
-                                            </span>`;
-                            });
-                        }
-                    } else {
-                        // Hide all document elements if none
-                        formDocumentsElems.hide();
-                    }
-                    // populate the form with the product name, productID, price
-                    if (productDisplay && productDisplayHTML.length > 0) {
-                        productDisplay.html += '<br>' + productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:700;">${htmlContent}</div>`).join('<br>');
-                        productDisplay.show();
-                    } else {
-                        productDisplay.hide();
-                    }
+            //populate the form documents section - IS WORKING
+            function populateFormDocuments() {
+                if(formKeyFobBox) {
+                    formKeyFobBox.collapse();
                 }
+                if(formNameAgeBox) {
+                    formNameAgeBox.collapse();
+                }
+                formErrorMessage.text = '';
+                if (typeof formPropertyAddress.disable === 'function') formPropertyAddress.disable();
+
+                if (formDocumentLinks.length > 0) {
+                    const docElems = formDocumentsElems;
+                    // Clear and hide all first
+                    docElems.forEach(el => { if (el) { el.html = ''; el.hide(); }});
+
+                    for (let i = 0; i < formDocumentLinks.length && i < docElems.length; i++) {
+                        const el = docElems[i];
+                        if (!el) continue;
+                        const link = formDocumentLinks[i];
+                        console.log(`Document ${i + 1}: ${link}`);
+                        el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
+                                    <span id="status-${i + 1}" style="font-size: 16px; color: #ff6600; font-weight: bold;">
+                                        ⏳ Pending Review
+                                    </span>`;
+                        el.show();
+
+                        el.onClick(() => {
+                            el.html = `<a href="${link}" style="font-size:18px; font-weight:700; color:blue; text-decoration:underline" target="_blank">📄 Click to review document #${i + 1}</a>
+                                        <span id="status-${i + 1}" style="font-size: 16px; color: #008000; font-weight: bold;">
+                                            ✅ Reviewed
+                                        </span>`;
+                        });
+                    }
+                } else {
+                    // Hide all document elements if none
+                    formDocumentsElems.hide();
+                }
+                // populate the form with the product name, productID, price
+                if (productDisplay && productDisplayHTML.length > 0) {
+                    productDisplay.html += '<br>' + productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:700;">${htmlContent}</div>`).join('<br>');
+                    productDisplay.show();
+                } else {
+                    productDisplay.hide();
+                }
+
+                //if user selected 'yes' for having a key fob, show the key fob number input field
+                if (formHasKeyFob) {
+                    formHasKeyFob.onChange(() => {
+                        const hasFob = formHasKeyFob.value === 'Yes';
+                        const wantsFob = formHasKeyFob.value === 'No but wants key fob';
+                        if (hasFob) {
+                            formKeyFobBox.expand();
+                            formNameAgeBox.expand();
+                        } else if (wantsFob) {
+                            formKeyFobBox.collapse();
+                            formNameAgeBox.expand();
+                        } else {
+                            formKeyFobBox.collapse();
+                            formNameAgeBox.collapse();
+                        }
+                    }); 
+                }
+            }
         });
     });
     
@@ -1036,7 +1031,7 @@ async function submitHoaForm() {
         const email = formEmail.value?.trim();
         const signature = formSignature.value;
         const propertyAddress = formPropertyAddress.value;
-        
+
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
@@ -1053,7 +1048,41 @@ async function submitHoaForm() {
 
             return;
         }
-        // Validate that all required documents have been reviewed
+        // Prepare an array to hold key fob numbers (accessible later when inserting the form record)
+        let fobNumbers = [];
+
+        // Validate that the fob numbers are provided if user indicated they have key fobs
+        if (formHasKeyFob && formHasKeyFob.value === 'Yes') {
+            // loop through the fob numbers and ensure they are numeric and of correct length, 5 digits
+            const fobRegex = /^\d{5}$/;
+            const fobElems = formFobNumbers || [];
+            for (let i = 0; i < fobElems.length; i++) {
+                const fobNumber = (fobElems[i] && typeof fobElems[i].value === 'string') ? fobElems[i].value.trim() : '';
+                if (!fobNumber) {
+                    // If none of the fob fields have been provided, show an error only after checking the last field.
+                    // Skip empty entries until the final iteration; if no valid fobs were collected by then, show message.
+                    if (i === fobElems.length - 1 && fobNumbers.length === 0) {
+                        formErrorMessage.text = 'Please provide your key fob numbers.';
+                        return;
+                    }
+                    continue;
+                }
+                if (!fobRegex.test(fobNumber)) {
+                    formErrorMessage.text = `Please enter a valid key fob number: ${fobNumber}. Each key fob number should be exactly 5 digits.`;
+                    return;
+                }
+                fobNumbers.push(fobNumber);
+            }
+
+            // Ensure we have 10 slots (fill with empty strings if fewer provided)
+            while (fobNumbers.length < 10) {
+                fobNumbers.push('');
+            }
+        } else {
+            // If user does not indicate they have key fobs, ensure fobNumbers is an array of 10 empty strings
+            fobNumbers = new Array(10).fill('');
+        }
+        // Validate that all required documents have been reviewed and clicked on
         const requiredDocCount = formDocumentLinks.length;
         let allReviewed = true;
         const docElems = formDocumentsElems;
@@ -1068,17 +1097,7 @@ async function submitHoaForm() {
         if (!allReviewed) {
             const errorMessage = 'Please review all required documents before submitting the form.';
             formErrorMessage.text = errorMessage;
-            return;
         }
-        // Validate that the form has been signed
-        if (!signature || signature.trim() === '') {
-            const errorMessage = 'Please provide your signature before submitting the form.';
-            formErrorMessage.text = errorMessage;
-            return;
-        }
-        
-        // Capture the product sku connected to the checkbox selection and 
-        // submit those to the form submission data. Then add those to the cart.
         console.log('Selected products to submit:', selectedProducts);
         let itemToInsert = {
             "form_name": formName, // For a text field
@@ -1088,7 +1107,17 @@ async function submitHoaForm() {
             "form_phone_number": phone,
             "form_email": email,
             "form_signature": signature,
-            "form_product_sku_01": selectedProducts.join(', ') // Join all selected SKUs into a single string
+            "form_product_sku_01": Array.isArray(selectedProducts) ? selectedProducts.join(', ') : (selectedProducts || ''), // Join all selected SKUs into a single string
+            "form_key_fob_01": fobNumbers[0] || '',
+            "form_key_fob_02": fobNumbers[1] || '',
+            "form_key_fob_03": fobNumbers[2] || '',
+            "form_key_fob_04": fobNumbers[3] || '',
+            "form_key_fob_05": fobNumbers[4] || '',
+            "form_key_fob_06": fobNumbers[5] || '',
+            "form_key_fob_07": fobNumbers[6] || '',
+            "form_key_fob_08": fobNumbers[7] || '',
+            "form_key_fob_09": fobNumbers[8] || '',
+            "form_key_fob_10": fobNumbers[9] || ''
         };
         wixData.insert(formCollectionName, itemToInsert)
             .then((insertedItem) => {
@@ -1098,6 +1127,7 @@ async function submitHoaForm() {
                 console.error("Error inserting item:", error);
                 // Add any error handling here
             });
+     
         // Show success message before redirecting
         console.log('Form submitted successfully, adding to cart...');
         
