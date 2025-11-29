@@ -612,6 +612,8 @@ $w.onReady(function () {
     residentAddressDropdown.onChange(async () => {
         const householdId = residentAddressDropdown.value;
         selectedAddress = householdId; // Store selected address globally
+        // Reset any prior auto-selected SKUs (e.g. Unit 10) for a new selection
+        autoSelectedProducts = [];
         console.log('Dropdown value (householdId):', householdId);
         
         if (householdId == '' || householdId == 'undefined') { 
@@ -647,6 +649,8 @@ $w.onReady(function () {
                 residentDropdownMessage.hide();
                 hh = items[0];
                 currentHousehold = hh; // Store household data globally
+                // Clear autoSelectedProducts when a household is resolved; will set below only if unit10 detected
+                autoSelectedProducts = [];
                 console.log('hh: tier number', hh.tier_number);
             } else {
                 console.log('No matching address found for:', householdId);
@@ -665,9 +669,12 @@ $w.onReady(function () {
                     residentDropdownMessage.hide();
                     hh = matchingItem;
                     currentHousehold = hh; // Store household data globally
+                    // Clear autoSelectedProducts when a household is resolved; will set below only if unit10 detected
+                    autoSelectedProducts = [];
                 } else {
                     console.log('Still no matching address found');
                     residentDropdownMessage.show();
+                    return;
                 }
             }
         } catch (error) {
@@ -755,7 +762,6 @@ $w.onReady(function () {
 
                     if (isUnit10) {
                         // Add Unit 10 product option
-                        // radioGroup10.options = radioGroup10.options.concat(unit10Product);
                         console.log('Added Unit 10 product option for resident');
                         // Auto-include Unit 10 SKU when non-HOA resident
                         autoSelectedProducts = [unit10Product[0].value];
@@ -776,7 +782,6 @@ $w.onReady(function () {
 
                     if (isUnit10) {
                         // Add Unit 10 product option
-                        // radioGroup12.options = radioGroup12.options.concat(unit10Product);
                         console.log('Added Unit 10 product option for resident');
                         // Auto-include Unit 10 SKU when non-HOA resident
                         autoSelectedProducts = [unit10Product[0].value];
@@ -797,7 +802,6 @@ $w.onReady(function () {
 
                     if (isUnit10) {
                         // Add Unit 10 product option
-                        // radioGroup14.options = radioGroup14.options.concat(unit10Product);
                         console.log('Added Unit 10 product option for resident');
                         // Auto-include Unit 10 SKU when non-HOA resident
                         autoSelectedProducts = [unit10Product[0].value];
@@ -888,7 +892,6 @@ $w.onReady(function () {
                             break;
 
                         case 'hoa-dues-tier-three':
-                        case 'test-product-physical':
                             matchedState = formBoxHoaTier3;
                             formName = 'hoa_dues_tier_three';
                             formCollectionName = 'FormSubsHoaDuesTier3';
@@ -905,6 +908,7 @@ $w.onReady(function () {
                         case 'pavilion-2-hrs':
                         case 'pavilion-addl-hour':
                         case 'pavilion-jumbo':
+                        case 'test-product-physical':
                             matchedState = formBoxPavilion;
                             formName = 'rec_reserve_pavilion';
                             formCollectionName = 'formSubsRecReservePavilion';
@@ -912,7 +916,7 @@ $w.onReady(function () {
                             break;
 
                         default:
-                            // no match for this sku; continue to next
+                            // no match for this sku; leave any previously determined matchedState intact
                             break;
                     }
                 }
@@ -989,6 +993,20 @@ $w.onReady(function () {
 
                 populateFormDocuments();
 
+                // Collapse the section with the first few questions after form has loaded to keep UI focused
+                try {
+                    const section2 = $w('#section2');
+                    if (section2 && typeof section2.collapse === 'function') {
+                        section2.collapse();
+                        // Scroll to top of formStatebox to ensure user sees the beginning of the form
+                        if (typeof formStatebox.scrollTo === 'function') {
+                            formStatebox.scrollTo();
+                        }
+                    }
+                } catch (collapseErr) {
+                    console.warn('Could not collapse #section2:', collapseErr);
+                }
+
             }
             
             //populate the form documents section
@@ -1027,7 +1045,7 @@ $w.onReady(function () {
                     }
                 } else {
                     // Hide all document elements if none
-                    formDocumentsElems.hide();
+                    console.log('No document links to display');
                 }
                 // populate the form with the product name, productID, price
                 // If unit10 auto included, ensure display HTML reflects it
