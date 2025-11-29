@@ -858,7 +858,7 @@ $w.onReady(function () {
                         matchedState = formBoxRecMember;
                         formName = 'rec_membership';
                         formCollectionName = 'formSubsRecMember';
-                        getElementsFunction = getRecMembershipFormElements();
+                        getElementsFunction = getRecMembershipFormElements; // store function reference
                         break;
 
                     case 'hoa-dues-tier-one':
@@ -867,7 +867,7 @@ $w.onReady(function () {
                         matchedState = formBoxHoaTier1and2;
                         formName = 'hoa_dues_tier_one_and_two';
                         formCollectionName = 'formSubsHoaDuesTier1and2';
-                        getElementsFunction = getHoa1and2FormElements();
+                        getElementsFunction = getHoa1and2FormElements; // store function reference
                         break;
 
                     case 'hoa-dues-tier-three':
@@ -876,7 +876,7 @@ $w.onReady(function () {
                         matchedState = formBoxHoaTier3;
                         formName = 'hoa_dues_tier_three';
                         formCollectionName = 'FormSubsHoaDuesTier3';
-                        getElementsFunction = getHoa3FormElements();
+                        getElementsFunction = getHoa3FormElements; // store function reference
                         break;
 
                     case 'key-fob':
@@ -884,7 +884,7 @@ $w.onReady(function () {
                         matchedState = formBoxKeyFob;
                         formName = 'rec_new_key_fob';
                         formCollectionName = 'formSubsRecNewKeyFob';
-                        getElementsFunction = getNewKeyFobFormElements();
+                        getElementsFunction = getNewKeyFobFormElements; // store function reference
                         break;
 
                     case 'pavilion-2-hrs':
@@ -894,7 +894,7 @@ $w.onReady(function () {
                         matchedState = formBoxPavilion;
                         formName = 'rec_reserve_pavilion';
                         formCollectionName = 'formSubsRecReservePavilion';
-                        getElementsFunction = getPavilionFormElements();
+                        getElementsFunction = getPavilionFormElements; // store function reference
                         break;
 
                     default:
