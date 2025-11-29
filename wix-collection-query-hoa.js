@@ -16,6 +16,7 @@ let isNonResident = false;
 let productsToBuy = [];
 let formDocumentLinks = [];
 let productDisplayHTML = [];
+let autoSelectedProducts = []; // SKUs to automatically include (e.g. Unit 10)
 const availableHoaTier1Products = [
     {
         label: "Pay HOA Dues",
@@ -92,7 +93,7 @@ const availableRecMemberProducts = [
 ];
 const unit10Product = [
     {
-        label: "Unit 10 Rental",
+        label: "Unit 10 Additional HOA Dues",
         value: "hoa-dues-unit-ten",
         productId: "product_5c189125-6094-7239-992d-12f6c5c71511",
         productSku: "hoa-dues-unit-ten"
@@ -734,7 +735,7 @@ $w.onReady(function () {
             isHoaMember = false;
             isRecMember = false;
             let isUnit10 = false;
-            // Check if Unit 10 resident
+            // Check if Unit 10 resident, look at unit number in Residents Main Collection
             if (hh?.unit_number && hh.unit_number.toLowerCase().includes('10')) {
                 isUnit10 = true;
                 console.log('Resident is in Unit 10');
@@ -754,8 +755,10 @@ $w.onReady(function () {
 
                     if (isUnit10) {
                         // Add Unit 10 product option
-                        radioGroup10.options = radioGroup10.options.concat(unit10Product);
+                        // radioGroup10.options = radioGroup10.options.concat(unit10Product);
                         console.log('Added Unit 10 product option for resident');
+                        // Auto-include Unit 10 SKU when non-HOA resident
+                        autoSelectedProducts = [unit10Product[0].value];
                     }
                     break;
                 }
@@ -773,8 +776,10 @@ $w.onReady(function () {
 
                     if (isUnit10) {
                         // Add Unit 10 product option
-                        radioGroup12.options = radioGroup12.options.concat(unit10Product);
+                        // radioGroup12.options = radioGroup12.options.concat(unit10Product);
                         console.log('Added Unit 10 product option for resident');
+                        // Auto-include Unit 10 SKU when non-HOA resident
+                        autoSelectedProducts = [unit10Product[0].value];
                     }
                     break;
                 }
@@ -792,8 +797,10 @@ $w.onReady(function () {
 
                     if (isUnit10) {
                         // Add Unit 10 product option
-                        radioGroup14.options = radioGroup14.options.concat(unit10Product);
+                        // radioGroup14.options = radioGroup14.options.concat(unit10Product);
                         console.log('Added Unit 10 product option for resident');
+                        // Auto-include Unit 10 SKU when non-HOA resident
+                        autoSelectedProducts = [unit10Product[0].value];
                     }
 
                     break;
@@ -844,62 +851,70 @@ $w.onReady(function () {
             getElementsFunction = null;
 
             selectedProducts = cb.value || [];
+            // Merge any auto-selected SKUs (e.g. unit10) so they are added to cart even if user didn't check them
+            if (autoSelectedProducts && autoSelectedProducts.length > 0) {
+                if (!Array.isArray(selectedProducts)) selectedProducts = [selectedProducts];
+                autoSelectedProducts.forEach(sku => {
+                    if (!selectedProducts.includes(sku)) selectedProducts.push(sku);
+                });
+            }
             console.log('Initial selected products from', cb.id, ':', selectedProducts);
             formSection.expand();
 
             // determine matchedState for the aggregated selections
-            if(selectedProducts) {
-                console.log('Processing selected product SKU for matchedState logic:', selectedProducts);
-                switch (selectedProducts) {
-                
-                    case 'rec-center-resident':
-                    case 'rec-center-non-resident':
-                        // show Rec Center Dues form
-                        matchedState = formBoxRecMember;
-                        formName = 'rec_membership';
-                        formCollectionName = 'formSubsRecMember';
-                        getElementsFunction = getRecMembershipFormElements; // store function reference
-                        break;
+            if (selectedProducts) {
+                console.log('Processing selected product SKU(s) for matchedState logic:', selectedProducts);
 
-                    case 'hoa-dues-tier-one':
-                    case 'hoa-dues-tier-two':
-                        // show HOA Tier 1 & 2 form
-                        matchedState = formBoxHoaTier1and2;
-                        formName = 'hoa_dues_tier_one_and_two';
-                        formCollectionName = 'formSubsHoaDuesTier1and2';
-                        getElementsFunction = getHoa1and2FormElements; // store function reference
-                        break;
+                // Determine selections to iterate over (normalize to array)
+                const selections = Array.isArray(selectedProducts) ? selectedProducts : [selectedProducts];
 
-                    case 'hoa-dues-tier-three':
-                    case 'test-product-physical':
-                        // show HOA Tier 3 form
-                        matchedState = formBoxHoaTier3;
-                        formName = 'hoa_dues_tier_three';
-                        formCollectionName = 'FormSubsHoaDuesTier3';
-                        getElementsFunction = getHoa3FormElements; // store function reference
-                        break;
+                // Use last matching SKU to determine which form to show (last match wins)
+                for (const sel of selections) {
+                    switch (sel) {
+                        case 'rec-center-resident':
+                        case 'rec-center-non-resident':
+                            matchedState = formBoxRecMember;
+                            formName = 'rec_membership';
+                            formCollectionName = 'formSubsRecMember';
+                            getElementsFunction = getRecMembershipFormElements;
+                            break;
 
-                    case 'key-fob':
-                        // show Key Fob form
-                        matchedState = formBoxKeyFob;
-                        formName = 'rec_new_key_fob';
-                        formCollectionName = 'formSubsRecNewKeyFob';
-                        getElementsFunction = getNewKeyFobFormElements; // store function reference
-                        break;
+                        case 'hoa-dues-tier-one':
+                        case 'hoa-dues-tier-two':
+                            matchedState = formBoxHoaTier1and2;
+                            formName = 'hoa_dues_tier_one_and_two';
+                            formCollectionName = 'formSubsHoaDuesTier1and2';
+                            getElementsFunction = getHoa1and2FormElements;
+                            break;
 
-                    case 'pavilion-2-hrs':
-                    case 'pavilion-addl-hour':
-                    case 'pavilion-jumbo':
-                        // show Pavilion Reservation form
-                        matchedState = formBoxPavilion;
-                        formName = 'rec_reserve_pavilion';
-                        formCollectionName = 'formSubsRecReservePavilion';
-                        getElementsFunction = getPavilionFormElements; // store function reference
-                        break;
+                        case 'hoa-dues-tier-three':
+                        case 'test-product-physical':
+                            matchedState = formBoxHoaTier3;
+                            formName = 'hoa_dues_tier_three';
+                            formCollectionName = 'FormSubsHoaDuesTier3';
+                            getElementsFunction = getHoa3FormElements;
+                            break;
 
-                    default:
-                        // no match for this sku
-                    break;
+                        case 'key-fob':
+                            matchedState = formBoxKeyFob;
+                            formName = 'rec_new_key_fob';
+                            formCollectionName = 'formSubsRecNewKeyFob';
+                            getElementsFunction = getNewKeyFobFormElements;
+                            break;
+
+                        case 'pavilion-2-hrs':
+                        case 'pavilion-addl-hour':
+                        case 'pavilion-jumbo':
+                            matchedState = formBoxPavilion;
+                            formName = 'rec_reserve_pavilion';
+                            formCollectionName = 'formSubsRecReservePavilion';
+                            getElementsFunction = getPavilionFormElements;
+                            break;
+
+                        default:
+                            // no match for this sku; continue to next
+                            break;
+                    }
                 }
             }
 
@@ -971,6 +986,7 @@ $w.onReady(function () {
                 setupFormHandlers();
 
                 await getProductData(selectedProducts);
+
                 populateFormDocuments();
 
             }
@@ -1014,6 +1030,13 @@ $w.onReady(function () {
                     formDocumentsElems.hide();
                 }
                 // populate the form with the product name, productID, price
+                // If unit10 auto included, ensure display HTML reflects it
+                if (autoSelectedProducts && autoSelectedProducts.length > 0) {
+                    const unitSku = unit10Product[0].value;
+                    if (selectedProducts.includes(unitSku) && !productDisplayHTML.includes(unit10Product[0].label)) {
+                        productDisplayHTML.push(unit10Product[0].label);
+                    }
+                }
                 if (productDisplay && productDisplayHTML.length > 0) {
                     productDisplay.html += '<br>' + productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:700;">${htmlContent}</div>`).join('<br>');
                     productDisplay.show();
