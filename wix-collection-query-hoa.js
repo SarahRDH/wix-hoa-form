@@ -1044,9 +1044,9 @@ $w.onReady(function () {
                         });
                     }
                 } else {
-                    // Hide all document elements if none
                     console.log('No document links to display');
                 }
+
                 // populate the form with the product name, productID, price
                 // If unit10 auto included, ensure display HTML reflects it
                 if (autoSelectedProducts && autoSelectedProducts.length > 0) {
@@ -1098,8 +1098,8 @@ function setupFormHandlers() {
     }
 }
 
-// New: validateHoaForm performs all form-field validation and returns fobNumbers when valid
-async function validateHoaForm({ firstName, lastName, phone, email, signature, propertyAddress } = {}) {
+// validateHoaForm performs all form-field validation and returns fobNumbers when valid
+async function validateHoaForm({ firstName, lastName, phone, email, signature } = {}) {
     try {
         // Validate required fields are not empty
         if (!firstName) {
@@ -1250,7 +1250,7 @@ async function submitHoaForm() {
 
         // Use the extracted validation function; it must succeed before proceeding
         let fobNumbers = [];
-        const validation = await validateHoaForm({ firstName, lastName, phone, email, signature, propertyAddress, adultsBox, dependentsBox });
+        const validation = await validateHoaForm({ firstName, lastName, phone, email, signature, adultsBox, dependentsBox });
         if (!validation || !validation.valid) {
             return;
         }
