@@ -17,6 +17,7 @@ let productsToBuy = [];
 let formDocumentLinks = [];
 let productDisplayHTML = [];
 let autoSelectedProducts = []; // SKUs to automatically include (e.g. Unit 10)
+
 const availableHoaTier1Products = [
     {
         label: "Pay HOA Dues",
@@ -66,18 +67,6 @@ const availableRecMemberProducts = [
         productId: "product_e251c1ab-e43e-aaba-9491-9f8615e5b59e",
         productSku: "pavilion-2-hrs" 
     },
-    {
-        label: "Extra Pavilion Hour",
-        value: "pavilion-addl-hour",
-        productId: "product_c31a5c0d-c95f-c47d-a167-7f6fb24281b9",
-        productSku: "pavilion-addl-hour"
-    },
-    {
-        label: "Extra Large Party Fee",
-        value: "pavilion-jumbo",
-        productId: "product_25a9c7f1-c631-3136-dcb1-9f4df2d758a7",
-        productSku: "pavilion-jumbo"
-    },
     { 
         label: "Order a New Key Fob", 
         value: "key-fob",
@@ -91,6 +80,36 @@ const availableRecMemberProducts = [
         productSku: "test-product-physical"
     }
 ];
+const extraPavilionHourProduct = [
+    {
+        label: "Extra Pavilion Hour",
+        value: "pavilion-addl-hour",
+        productId: "product_c31a5c0d-c95f-c47d-a167-7f6fb24281b9",
+        productSku: "pavilion-addl-hour"
+    }
+];
+
+//if the productId contains 'product_' prefix, remove it
+extraPavilionHourProduct.forEach(prod => {
+    if (prod.productId.startsWith('product_')) {
+        prod.productId = prod.productId.replace('product_', '');
+    }   
+});
+const jumboPavilionProduct = [
+    {
+        label: "Extra Large Party Fee",
+        value: "pavilion-jumbo",
+        productId: "product_25a9c7f1-c631-3136-dcb1-9f4df2d758a7",
+        productSku: "pavilion-jumbo"
+    }
+];
+//if the productId contains 'product_' prefix, remove it
+jumboPavilionProduct.forEach(prod => {
+    if (prod.productId.startsWith('product_')) {
+        prod.productId = prod.productId.replace('product_', '');
+    }
+});
+
 const unit10Product = [
     {
         label: "Unit 10 Additional HOA Dues",
@@ -168,6 +187,7 @@ let formGuestCount = null;
 let formPoolUse = null;
 let formLifeGuard = null;
 let formKeyFobBox = null;
+let submitHandlerBound = false; // guard to prevent multiple submit bindings
 
 const formElementsHoa1and2 = {
     address: 'input5',
@@ -310,12 +330,12 @@ function getNewKeyFobFormElements() {
 }
 
 const formElementsPavilion = {
-    address: 'input61',
+    address: 'input51',
     error: 'text110',
     submit: 'button12',
     docs: ['text116', 'text117', 'text118'],   
     signature: 'signatureInput4',
-    productDisplay: 'text117',
+    productDisplay: 'text112',
     firstName: 'input55',
     lastName: 'input53',
     email: 'input52',
@@ -358,6 +378,8 @@ function resolveAndAssignFormElements(idMap) {
     formPropertyAddress = getEl(idMap.address);
     formErrorMessage = getEl(idMap.error);
     formSubmitButton = getEl(idMap.submit);
+    // reset binding guard whenever the resolved submit button changes so a new handler can be attached
+    submitHandlerBound = false;
     formSignature = getEl(idMap.signature);
     formDocumentsElems = getElsArray(idMap.docs || []);
     productDisplay = getEl(idMap.productDisplay);
@@ -392,6 +414,10 @@ $w.onReady(function () {
     async function getProductData(selectedProducts) {
         try {
             console.log('getProductData called with:', selectedProducts);
+            // Clear global document and display arrays so each lookup replaces previous results
+            formDocumentLinks = [];
+            productDisplayHTML = [];
+            
             const result = await wixData.query('productsRichContent').find();
             const items = (result && result.items) ? result.items : [];
 
@@ -417,6 +443,7 @@ $w.onReady(function () {
                 selectedProducts = [selectedProducts];  
             }  
             const selections = Array.isArray(selectedProducts) ? selectedProducts : [];
+
             console.log('Processing selected products:', selections);
             // Loop through selected products and match against products rich content collection items
             for (const sel of selections) {
@@ -985,6 +1012,98 @@ $w.onReady(function () {
                         console.warn('Could not set formPropertyAddress value:', e);
                     }
                 }
+                // if a user selects a value of '3 hours' in totalHours, automatically add the extraPavilionHourProduct.
+                // if a user selects a value of '4 hours' in totalHours, automatically add the extraPavilionHourProduct with a quantity of 2.
+                // if a user selects a value of 'large' in guestCount, automatically add the jumboPavilionProduct.
+                if (formTotalHours) {
+                    // make handler async so we can refresh product lookup and UI after changing selection
+                    formTotalHours.onChange(async () => {
+                        productDisplayHTML = [];
+                        
+                        try {
+                            const hours = formTotalHours.value;
+                            // Ensure selectedProducts is an array
+                            if (!Array.isArray(selectedProducts)) selectedProducts = selectedProducts ? [selectedProducts] : [];
+
+                            // Remove any previous pavilion extra-hour SKUs to avoid duplicates before adding anew
+                            selectedProducts = selectedProducts.filter(sku => sku !== extraPavilionHourProduct[0].value);
+
+                            if (hours === '3 hours') {
+                                selectedProducts.push(extraPavilionHourProduct[0].value);
+                                // add human readable label for display
+                                if (!productDisplayHTML.includes(extraPavilionHourProduct[0].label)) productDisplayHTML.push(extraPavilionHourProduct[0].label);
+                            } else if (hours === '4 hours') {
+                                // two extra hours -> add two SKUs so quantity will effectively be 2
+                                selectedProducts.push(extraPavilionHourProduct[0].value);
+                                selectedProducts.push(extraPavilionHourProduct[0].value);
+                                if (!productDisplayHTML.includes(extraPavilionHourProduct[0].label)) productDisplayHTML.push(extraPavilionHourProduct[0].label);
+                            } else {
+                                // no extra hours selected -> nothing to add
+                            }
+
+                            console.log('After totalHours change, selectedProducts:', selectedProducts);
+
+                            // Refresh productsToBuy by re-running the product lookup
+                            if (typeof getProductData === 'function') {
+                                await getProductData(selectedProducts);
+                            } else if (typeof getProductData === 'undefined') {
+                                // fallback: call the locally scoped function if available
+                                try {
+                                    await getProductData(selectedProducts);
+                                } catch (e) {
+                                    console.warn('getProductData not available to refresh products after totalHours change', e);
+                                }
+                            }
+
+                            // dedupe display html and refresh the documents & product display section
+                            productDisplayHTML = Array.from(new Set(productDisplayHTML || []));
+                            try { populateFormDocuments(); } catch (e) { console.warn('populateFormDocuments not callable here', e); }
+
+                        } catch (err) {
+                            console.error('Error handling totalHours change:', err);
+                        }
+                    });
+                }
+
+                if (formGuestCount) {
+                    formGuestCount.onChange(async () => {
+                        productDisplayHTML = [];
+
+                        try {
+                            const guestCountValue = formGuestCount.value;
+                            if (!Array.isArray(selectedProducts)) selectedProducts = selectedProducts ? [selectedProducts] : [];
+
+                            // Remove any previous jumbo pavilion SKU to avoid duplicates before adding anew
+                            selectedProducts = selectedProducts.filter(sku => sku !== jumboPavilionProduct[0].value);
+                            productDisplayHTML = (productDisplayHTML || []).filter(label => label !== jumboPavilionProduct[0].label);
+
+                            if (guestCountValue === 'large') {
+                                selectedProducts.push(jumboPavilionProduct[0].value);
+                                if (!productDisplayHTML.includes(jumboPavilionProduct[0].label)) productDisplayHTML.push(jumboPavilionProduct[0].label);
+                            }
+
+                            console.log('After guestCount change, selectedProducts:', selectedProducts);
+
+                            // Refresh productsToBuy by re-running the product lookup
+                            if (typeof getProductData === 'function') {
+                                await getProductData(selectedProducts);
+                            } else if (typeof getProductData === 'undefined') {
+                                try {
+                                    await getProductData(selectedProducts);
+                                } catch (e) {
+                                    console.warn('getProductData not available to refresh products after guestCount change', e);
+                                }
+                            }
+
+                            // dedupe display html and refresh the documents & product display section
+                            productDisplayHTML = Array.from(new Set(productDisplayHTML || []));
+                            try { populateFormDocuments(); } catch (e) { console.warn('populateFormDocuments not callable here', e); }
+
+                        } catch (err) {
+                            console.error('Error handling guestCount change:', err);
+                        }
+                    });                    
+                }
 
                 // Re-bind submit handler now that formSubmitButton is set
                 setupFormHandlers();
@@ -1048,17 +1167,22 @@ $w.onReady(function () {
                 }
 
                 // populate the form with the product name, productID, price
-                // If unit10 auto included, ensure display HTML reflects it
+                // If unit10 or other pavilion products are auto included, ensure display HTML reflects it
                 if (autoSelectedProducts && autoSelectedProducts.length > 0) {
                     const unitSku = unit10Product[0].value;
+
                     if (selectedProducts.includes(unitSku) && !productDisplayHTML.includes(unit10Product[0].label)) {
                         productDisplayHTML.push(unit10Product[0].label);
                     }
                 }
+
                 if (productDisplay && productDisplayHTML.length > 0) {
-                    productDisplay.html += '<br>' + productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:700;">${htmlContent}</div>`).join('<br>');
+                    // Replace the element HTML instead of appending to avoid duplicate entries
+                    productDisplay.html = productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:500;">${htmlContent}</div>`).join('<br>');
                     productDisplay.show();
                 } else {
+                    // Ensure the display is cleared when there are no products
+                    productDisplay.html = '';
                     productDisplay.hide();
                 }
 
@@ -1089,14 +1213,19 @@ $w.onReady(function () {
 
 // Setup form submission handlers
 function setupFormHandlers() {
-    // The button should be in the HOA form state
-    if (formSubmitButton) {
-        formSubmitButton.onClick(async () => {
+    // Do nothing if there's no resolved submit button yet
+    if (!formSubmitButton) return;
+    // Avoid attaching duplicate handlers to the same element
+    if (submitHandlerBound) return;
 
-            await submitHoaForm();
-        });
-    }
+    formSubmitButton.onClick(async () => {
+        await submitHoaForm();
+    });
+
+    submitHandlerBound = true;
 }
+
+// ------------------------------------------ Form validation and submission ------------------------------------------
 
 // validateHoaForm performs all form-field validation and returns fobNumbers when valid
 async function validateHoaForm({ firstName, lastName, phone, email, signature } = {}) {
@@ -1232,7 +1361,7 @@ async function validateHoaForm({ firstName, lastName, phone, email, signature } 
 // Function to submit HOA form without using the submit connection to the button in the Wix UI
 async function submitHoaForm() {
     try {
-        console.log('Submitting HOA Dues form...');
+        console.log('Submitting the form...');
         if (typeof formPropertyAddress.disable === 'function') formPropertyAddress.disable();
         // Hide any previous error messages
         formErrorMessage.text = '';
@@ -1256,9 +1385,23 @@ async function submitHoaForm() {
         }
         fobNumbers = validation.fobNumbers || [];
 
+        // Merge any auto-selected SKUs (e.g. unit10) so they are added to cart even if user didn't check them
+        if (autoSelectedProducts && autoSelectedProducts.length > 0) {
+            if (!Array.isArray(selectedProducts)) selectedProducts = [selectedProducts];
+            autoSelectedProducts.forEach(sku => {
+                //if the productId contains 'product_' prefix, remove it
+                if (sku.includes('product_')) {
+                    sku = sku.replace('product_', '');
+                }
+                if (!selectedProducts.includes(sku)) selectedProducts.push(sku);
+            });
+            console.log('edited product ids after merge:', selectedProducts, autoSelectedProducts);
+        }
+
         console.log('Selected products to submit:', selectedProducts);
+
         let itemToInsert = {
-            "form_name": formName, // For a text field
+            "form_name": formName,
             "form_property_address": propertyAddress, // Value from an input element
             "first_name": firstName,
             "last_name": lastName,
@@ -1279,7 +1422,13 @@ async function submitHoaForm() {
             "form_key_fob_09": fobNumbers[8] || '',
             "form_key_fob_10": fobNumbers[9] || '',
             "form_has_key_fob": hasKeyFob,
-            "form_documents_signed": formDocumentLinks.join(', ') // Join all document links into a single string
+            "form_documents_signed": formDocumentLinks.join(', '), // Join all document links into a single string
+            "form_rec_reserve_date": formReservationDate ? formReservationDate.value : null,
+            "form_rec_reserve_time": formStartTime ? formStartTime.value : null,
+            "form_rec_reserve_num_hours": formTotalHours ? formTotalHours.value : null,
+            "form_rec_reserve_guest_number": formGuestCount ? formGuestCount.value : null,
+            "form_pool_use": formPoolUse ? formPoolUse.value : null,
+            "form_pool_req_lifeguard": formLifeGuard ? formLifeGuard.value : null
         };
         wixData.insert(formCollectionName, itemToInsert)
             .then((insertedItem) => {
@@ -1293,12 +1442,8 @@ async function submitHoaForm() {
         // Show success message before redirecting
         console.log('Form submitted successfully, adding to cart...');
         
-        // Ensure we have product data before adding to cart
-        if (productsToBuy.length === 0) {
-            console.log('No products in productsToBuy, loading product data...');
-            await getProductData(selectedProducts);
-        }
-        
+        console.log('Final selectedProducts before addToCart:', selectedProducts);
+
         console.log('Products to add to cart:', productsToBuy);
         
         if (productsToBuy.length > 0) {
