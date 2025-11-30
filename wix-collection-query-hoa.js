@@ -140,7 +140,7 @@ let formBoxHoaTier1and2 = 'hoaDuesTier1State';
 let formBoxHoaTier3 = 'hoaDuesTier3State';
 let formBoxRecMember = 'recMemberState';
 let formBoxKeyFob = 'keyFobState';
-let formBoxPavilion = 'pavilionsState';
+let formBoxPavilion = 'pavilionState';
 
 // These elements will change depending on the form shown
 // They are defined in an object for each form, then the helper functions use the object to store the elements in a reusable variable.
@@ -682,9 +682,14 @@ $w.onReady(function () {
         }
 
         // Decide which products to show based on HOA / Rec member status and tier
-        if (hh?.hoa_dues_paid) { 
+        if(hh?.hoa_dues_paid == true || hh?.override_hoa_dues == true) {
             isHoaMember = true;
+        }
+        if(hh?.rec_dues_paid == true || hh?.override_rec_dues == true) {
+            isRecMember = true;
+        }
 
+        if (isHoaMember) { 
             switch(hh?.tier_number) {
                 case 1: {
                     console.log('tier 1');
@@ -692,9 +697,8 @@ $w.onReady(function () {
                     selectProductStatebox.changeState('isHoaMemberIsTier1');
                     const radioGroup11 = $w('#radioGroup11'); // checkbox for user to select products
                     
-                    if(hh?.rec_dues_paid) {
+                    if(isRecMember) {
                         // HOA and Rec dues already paid - only show rec products
-                        isRecMember = true;
                         radioGroup11.options = availableRecMemberProducts;
                     } else {
                         // HOA paid but rec dues not paid - only show rec dues
@@ -709,9 +713,8 @@ $w.onReady(function () {
                     selectProductStatebox.changeState('isHoaMemberIsTier2');
                     const radioGroup13 = $w('#radioGroup13'); // checkbox for user to select products
                     
-                    if(hh?.rec_dues_paid) {
+                    if(isRecMember) {
                         // HOA and Rec dues already paid - only show rec products
-                        isRecMember = true;
                         radioGroup13.options = availableRecMemberProducts;
                     } else {
                         // HOA paid but rec dues not paid - only show rec dues
@@ -725,7 +728,6 @@ $w.onReady(function () {
                     tierNumber = '3';
                     selectProductStatebox.changeState('isHoaMemberIsTier3');
                     const radioGroup15 = $w('#radioGroup15');
-                    isRecMember = true;
                     // Tier 3 rec dues included with HOA dues - only show rec products
                     radioGroup15.options = availableRecMemberProducts;
 
@@ -739,8 +741,6 @@ $w.onReady(function () {
                     break;
             }
         } else {
-            isHoaMember = false;
-            isRecMember = false;
             let isUnit10 = false;
             // Check if Unit 10 resident, look at unit number in Residents Main Collection
             if (hh?.unit_number && hh.unit_number.toLowerCase().includes('10')) {
