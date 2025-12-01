@@ -179,7 +179,6 @@ let formDependentsRec = null;
 let formNameAgeBox = null;
 let formFobNumbers = null;
 let formHasKeyFob = null;
-let formFobQuantity = null;
 let formReservationDate = null;
 let formStartTime = null;
 let formTotalHours = null;
@@ -309,9 +308,11 @@ const formElementsNewKeyFob = {
     lastName: 'input48',
     email: 'input47',
     phone: 'input49',
-    fobQuantity: 'fobQty',
-    nameAgeBox: 'namesAgesBox2'
+    nameAgeBox: 'namesAgesBox2',
+    adultsRec: 'adultsBox2',
+    dependentsRec: 'dependentsBox2'
 };
+
 // Helper to resolve active elements for new key fob form
 function getNewKeyFobFormElements() {
     console.log('getNewKeyFobFormElements called');
@@ -324,8 +325,9 @@ function getNewKeyFobFormElements() {
         lastName: formElementsNewKeyFob.lastName,
         email: formElementsNewKeyFob.email,
         phone: formElementsNewKeyFob.phone,
-        fobQuantity: formElementsNewKeyFob.fobQuantity,
-        nameAgeBox: formElementsNewKeyFob.nameAgeBox
+        nameAgeBox: formElementsNewKeyFob.nameAgeBox,
+        adultsRec: formElementsNewKeyFob.adultsRec,
+        dependentsRec: formElementsNewKeyFob.dependentsRec
     };
 }
 
@@ -601,6 +603,7 @@ $w.onReady(function () {
     formStatebox.collapse();
     residentBox.collapse();
     nonResidentBox.collapse();
+    $w('#text126').hide(); //non-resident registration closed message
 
     // Are you a resident?
     $w('#radioGroup1').onChange(() => {
@@ -612,13 +615,17 @@ $w.onReady(function () {
             residentDropdownMessage.show();
             nonResidentRecMemberQuestion.collapse();
             nonResidentAddressDropdown.collapse();
+            $w('#text126').hide(); //non-resident registration closed message
         } else {
             isNonResident = true;
-            nonResidentBox.expand();
-            nonResidentRecMemberQuestion.expand();
+            $w('#text126').show(); //non-resident registration closed message
+            // nonResidentBox.expand();
+            // nonResidentRecMemberQuestion.expand();
+            residentBox.collapse();
             residentAddressDropdown.collapse();
             residentDropdownMessage.hide();
-            $w('#radioGroup1').hide();
+            
+
         }
     });
 
@@ -1036,7 +1043,8 @@ $w.onReady(function () {
                                 // two extra hours -> add two SKUs so quantity will effectively be 2
                                 selectedProducts.push(extraPavilionHourProduct[0].value);
                                 selectedProducts.push(extraPavilionHourProduct[0].value);
-                                if (!productDisplayHTML.includes(extraPavilionHourProduct[0].label)) productDisplayHTML.push(extraPavilionHourProduct[0].label);
+                                productDisplayHTML.push(extraPavilionHourProduct[0].label);
+                                productDisplayHTML.push(extraPavilionHourProduct[0].label); // add twice if hours is 4
                             } else {
                                 // no extra hours selected -> nothing to add
                             }
@@ -1128,17 +1136,19 @@ $w.onReady(function () {
 
             }
             
-            //populate the form documents section
+            //populate the form documents section and other dynamic elements
             function populateFormDocuments() {
-                if(formKeyFobBox) {
+                // collapse optional boxes and reset error
+                if (formKeyFobBox) {
                     formKeyFobBox.collapse();
                 }
-                if(formNameAgeBox) {
+                if (formNameAgeBox) {
                     formNameAgeBox.collapse();
                 }
-                formErrorMessage.text = '';
+                if (formErrorMessage) formErrorMessage.text = '';
                 if (typeof formPropertyAddress.disable === 'function') formPropertyAddress.disable();
 
+                // Render required documents (same behavior as before)
                 if (formDocumentLinks.length > 0) {
                     const docElems = formDocumentsElems;
                     // Clear and hide all first
@@ -1166,22 +1176,107 @@ $w.onReady(function () {
                     console.log('No document links to display');
                 }
 
-                // populate the form with the product name, productID, price
-                // If unit10 or other pavilion products are auto included, ensure display HTML reflects it
-                if (autoSelectedProducts && autoSelectedProducts.length > 0) {
-                    const unitSku = unit10Product[0].value;
+                // Build product display entries from productsToBuy (ensures price is shown when available)
+                try {
+                    const displayEntries = [];
 
-                    if (selectedProducts.includes(unitSku) && !productDisplayHTML.includes(unit10Product[0].label)) {
-                        productDisplayHTML.push(unit10Product[0].label);
+                    // Build a small lookup of local product definitions by their value (sku)
+                    const localLookup = {};
+                    [extraPavilionHourProduct, jumboPavilionProduct, unit10Product].forEach(arr => {
+                        if (Array.isArray(arr)) arr.forEach(p => { if (p && p.value) localLookup[p.value] = p; });
+                    });
+
+                    // Helper to format label+price
+                    const formatEntry = (label, price) => {
+                        const priceStr = (typeof price === 'number' && !isNaN(price) && price > 0) ? ` — $${price.toFixed(2)}` : '';
+                        return `${label}${priceStr}`;
+                    };
+
+                    // If productsToBuy contains entries, respect multiplicity (duplicates represent quantity)
+                    if (Array.isArray(productsToBuy) && productsToBuy.length > 0) {
+                        // Maintain insertion order of distinct SKUs/productIds
+                        const seenKeys = new Set();
+                        const keysInOrder = [];
+                        const reps = {}; // key -> representative product object
+                        const counts = {}; // key -> count
+
+                        for (const p of productsToBuy) {
+                            const key = (p.sku || p.productId || JSON.stringify(p)).toString();
+                            if (!seenKeys.has(key)) {
+                                seenKeys.add(key);
+                                keysInOrder.push(key);
+                                reps[key] = p;
+                                counts[key] = 1;
+                            } else {
+                                counts[key] = (counts[key] || 0) + 1;
+                            }
+                        }
+
+                        for (const key of keysInOrder) {
+                            const p = reps[key];
+                            // resolve label
+                            let label = '';
+                            if (p && p.rawItem) {
+                                const rawName = p.rawItem.name;
+                                if (typeof rawName === 'string') label = rawName;
+                                else if (Array.isArray(rawName) && rawName.length > 0) label = rawName[0];
+                                else if (typeof rawName === 'object' && rawName && rawName.text) label = rawName.text;
+                            }
+                            if (!label) label = p.sku || '';
+                            if ((!label || label === '') && p.sku && localLookup[p.sku]) {
+                                label = localLookup[p.sku].label;
+                            }
+                            const price = p.price;
+
+                            const qty = counts[key] || 1;
+                            for (let i = 0; i < qty; i++) {
+                                if (label && label !== '') displayEntries.push(formatEntry(label, price));
+                            }
+                        }
+
+                        // If displayEntries ended up empty but selectedProducts contains known local SKUs, show those (respect multiplicity)
+                        if (displayEntries.length === 0 && Array.isArray(selectedProducts) && selectedProducts.length > 0) {
+                            const selCounts = {};
+                            for (const sku of selectedProducts) selCounts[sku] = (selCounts[sku] || 0) + 1;
+                            for (const sku of Object.keys(selCounts)) {
+                                const local = localLookup[sku];
+                                const qty = selCounts[sku];
+                                if (local) {
+                                    for (let i = 0; i < qty; i++) {
+                                        displayEntries.push(local.label + (local.price ? ` — $${local.price.toFixed(2)}` : ''));
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // No productsToBuy entries; try to render from selectedProducts and local lookup (respect multiplicity)
+                        if (Array.isArray(selectedProducts) && selectedProducts.length > 0) {
+                            const selCounts = {};
+                            for (const sku of selectedProducts) selCounts[sku] = (selCounts[sku] || 0) + 1;
+                            for (const sku of Object.keys(selCounts)) {
+                                const local = localLookup[sku];
+                                const qty = selCounts[sku];
+                                if (local) {
+                                    for (let i = 0; i < qty; i++) {
+                                        displayEntries.push(local.label + (local.price ? ` — $${local.price.toFixed(2)}` : ''));
+                                    }
+                                }
+                            }
+                        }
                     }
+
+                    // Preserve duplicates (so 4 hours shows two extra-hour lines). Remove only exact consecutive empties if any.
+                    productDisplayHTML = displayEntries.filter(d => d && d !== '');
+
+                } catch (err) {
+                    console.warn('Error building product display entries:', err);
                 }
 
-                if (productDisplay && productDisplayHTML.length > 0) {
-                    // Replace the element HTML instead of appending to avoid duplicate entries
+                // Render the product display element (replace HTML instead of appending)
+                if (productDisplay && Array.isArray(productDisplayHTML) && productDisplayHTML.length > 0) {
                     productDisplay.html = productDisplayHTML.map(htmlContent => `<div style="padding-bottom:10px; font-size:18px; font-weight:500;">${htmlContent}</div>`).join('<br>');
                     productDisplay.show();
-                } else {
-                    // Ensure the display is cleared when there are no products
+                } else if (productDisplay) {
                     productDisplay.html = '';
                     productDisplay.hide();
                 }
@@ -1202,6 +1297,10 @@ $w.onReady(function () {
                             formNameAgeBox.collapse();
                         }
                     }); 
+                }
+
+                if (matchedState === formBoxKeyFob) {
+                    formNameAgeBox.expand();
                 }
             }
         });
