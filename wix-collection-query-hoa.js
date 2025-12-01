@@ -1350,10 +1350,28 @@ async function validateHoaForm({ firstName, lastName, phone, email, signature } 
             if (formErrorMessage) formErrorMessage.text = errorMessage;
             return { valid: false };
         }
-        if (!signature) {
-            const errorMessage = 'Please provide your signature.';
-            if (formErrorMessage) formErrorMessage.text = errorMessage;
-            return { valid: false };
+        if (formSignature) {
+            if (!signature) {
+                const errorMessage = 'Please provide your signature.';
+                if (formErrorMessage) formErrorMessage.text = errorMessage;
+                return { valid: false };
+            }
+        }
+        if(formBoxKeyFob && !formHasKeyFob) {
+            if (formAdultsRec) {
+                if (!formAdultsRec.value) {
+                    const errorMessage = 'Please list the names and ages of adults using the rec center.';
+                    if (formErrorMessage) formErrorMessage.text = errorMessage;
+                    return { valid: false };
+                }
+            }
+            if (formDependentsRec) {
+                if (!formDependentsRec.value) {
+                    const errorMessage = 'Please list the names and ages of dependents using the rec center.';
+                    if (formErrorMessage) formErrorMessage.text = errorMessage;
+                    return { valid: false };
+                }
+            }
         }
         
         if (formHasKeyFob) {
@@ -1377,7 +1395,6 @@ async function validateHoaForm({ firstName, lastName, phone, email, signature } 
                 }
             }
         }
-
 
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1470,7 +1487,7 @@ async function submitHoaForm() {
         const lastName = formLastName.value?.trim();
         const phone = formPhone.value?.trim();
         const email = formEmail.value?.trim();
-        const signature = formSignature.value;
+        const signature = formSignature ? formSignature.value : null;
         const propertyAddress = formPropertyAddress.value;
         const adultsBox = formAdultsRec ? formAdultsRec.value : null;
         const dependentsBox = formDependentsRec ? formDependentsRec.value : null;
