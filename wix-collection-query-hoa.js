@@ -30,6 +30,12 @@ const availableHoaTier1Products = [
         value: "test-product-physical",
         productId: "product_3c5b6bf0-7042-3909-35ed-9f1eb0112de9",
         productSku: "test-product-physical"
+    },
+    {
+        label: "Pay Both HOA and Rec Dues",
+        value: "hoa-and-rec-dues-bundle",
+        productId: "product_8cc31e70-2e21-4c03-16a5-7b395faa740c",
+        productSku: "hoa-and-rec-dues-bundle"
     }
 ];
 const availableHoaTier2Products = [
@@ -44,6 +50,12 @@ const availableHoaTier2Products = [
         value: "test-product-physical",
         productId: "product_3c5b6bf0-7042-3909-35ed-9f1eb0112de9",
         productSku: "test-product-physical"
+    },
+    {
+        label: "Pay Both HOA and Rec Dues",
+        value: "hoa-and-rec-dues-bundle",
+        productId: "product_8cc31e70-2e21-4c03-16a5-7b395faa740c",
+        productSku: "hoa-and-rec-dues-bundle"
     }
 ];
 const availableHoaTier3Products = [
@@ -80,12 +92,27 @@ const availableRecMemberProducts = [
         productSku: "test-product-physical"
     }
 ];
+// The additional pavilion products are added in dynamically based on user selections in the pavilion form
+const pavilionReservationProduct = [
+        { 
+        label: "Pavilion Reservation", 
+        value: "pavilion-2-hrs",
+        productId: "product_e251c1ab-e43e-aaba-9491-9f8615e5b59e",
+        productSku: "pavilion-2-hrs" 
+    }
+];
+//if the productId contains 'product_' prefix, remove it
+pavilionReservationProduct.forEach(prod => {
+    if (prod.productId.startsWith('product_')) {
+        prod.productId = prod.productId.replace('product_', '');
+    }
+});
 const extraPavilionHourProduct = [
     {
-        label: "Extra Pavilion Hour",
-        value: "pavilion-addl-hour",
+        label: "Pavilion Reservation, Four Hours",
+        value: "pavilion-4-hours",
         productId: "product_c31a5c0d-c95f-c47d-a167-7f6fb24281b9",
-        productSku: "pavilion-addl-hour"
+        productSku: "pavilion-4-hours"
     }
 ];
 
@@ -97,7 +124,7 @@ extraPavilionHourProduct.forEach(prod => {
 });
 const jumboPavilionProduct = [
     {
-        label: "Extra Large Party Fee",
+        label: "Pavilion Reservation, Two Hours, Over 50 Guests",
         value: "pavilion-jumbo",
         productId: "product_25a9c7f1-c631-3136-dcb1-9f4df2d758a7",
         productSku: "pavilion-jumbo"
@@ -105,6 +132,21 @@ const jumboPavilionProduct = [
 ];
 //if the productId contains 'product_' prefix, remove it
 jumboPavilionProduct.forEach(prod => {
+    if (prod.productId.startsWith('product_')) {
+        prod.productId = prod.productId.replace('product_', '');
+    }
+});
+
+const jumboPavilionFourHourProduct = [
+    {
+        label: "Pavilion Reservation, Four Hours, Over 50 Guests",
+        value: "pavilion-jumbo-4-hours",
+        productId: "product_1f1abbf2-eb25-221f-9ad1-3e3affb1b9f5",
+        productSku: "pavilion-jumbo-4-hours"
+    }
+];
+//if the productId contains 'product_' prefix, remove it
+jumboPavilionFourHourProduct.forEach(prod => {
     if (prod.productId.startsWith('product_')) {
         prod.productId = prod.productId.replace('product_', '');
     }
@@ -160,6 +202,7 @@ let formBoxHoaTier3 = 'hoaDuesTier3State';
 let formBoxRecMember = 'recMemberState';
 let formBoxKeyFob = 'keyFobState';
 let formBoxPavilion = 'pavilionState';
+let backButton = $w('#text127');
 
 // These elements will change depending on the form shown
 // They are defined in an object for each form, then the helper functions use the object to store the elements in a reusable variable.
@@ -184,7 +227,6 @@ let formStartTime = null;
 let formTotalHours = null;
 let formGuestCount = null;
 let formPoolUse = null;
-let formLifeGuard = null;
 let formKeyFobBox = null;
 let submitHandlerBound = false; // guard to prevent multiple submit bindings
 
@@ -346,8 +388,7 @@ const formElementsPavilion = {
     startTime: 'timePicker1',
     totalHours: 'radioGroup5',
     guestCount: 'radioGroup6',
-    poolUse: 'radioGroup8',
-    lifeGuard: 'radioGroup9'
+    poolUse: 'radioGroup8'
 };
 // Helper to resolve active elements for pavilion reservation form
 function getPavilionFormElements() {
@@ -367,8 +408,7 @@ function getPavilionFormElements() {
         startTime: formElementsPavilion.startTime,
         totalHours: formElementsPavilion.totalHours,
         guestCount: formElementsPavilion.guestCount,
-        poolUse: formElementsPavilion.poolUse,
-        lifeGuard: formElementsPavilion.lifeGuard
+        poolUse: formElementsPavilion.poolUse
     };
 }
 
@@ -400,7 +440,6 @@ function resolveAndAssignFormElements(idMap) {
     formTotalHours = getEl(idMap.totalHours);
     formGuestCount = getEl(idMap.guestCount);
     formPoolUse = getEl(idMap.poolUse);
-    formLifeGuard = getEl(idMap.lifeGuard);
 }
 
 // ------------------------------------------- End of HTML elements and helper functions ------------------------------------------
@@ -855,7 +894,20 @@ $w.onReady(function () {
         selectProductStatebox.expand();
     });
 // ------------------------------------------Display the forms in the multi-state box ------------------------------------------
-    // Use a switch over selected product SKUs to pick the form state (last match wins)
+    //if backButton exists, set onClick to go back to select products state
+    if (backButton) {
+        backButton.onClick(() => {
+            $w('#section2').expand();
+            formSection.collapse();
+            //uncheck all selected products
+            selectProductsCheckboxes.forEach(cb => {
+                if (cb && typeof cb.value !== 'undefined') {
+                    cb.value = [];
+                }
+            });
+        });
+    }    
+// Use a switch over selected product SKUs to pick the form state (last match wins)
     let matchedState = null;
     let getElementsFunction = null;
     //get all the radioGroup elements (contain the products) to attach onChange event handlers
@@ -985,7 +1037,8 @@ $w.onReady(function () {
                     formErrorMessage,
                     formSubmitButton,
                     formDocumentsElemsLength: (formDocumentsElems && formDocumentsElems.length) || 0,
-                    productDisplay
+                    productDisplay,
+                    formSignature
                 });
 
                 // Set the selected address on the resolved address element(s).
@@ -1019,35 +1072,42 @@ $w.onReady(function () {
                         console.warn('Could not set formPropertyAddress value:', e);
                     }
                 }
-                // if a user selects a value of '3 hours' in totalHours, automatically add the extraPavilionHourProduct.
-                // if a user selects a value of '4 hours' in totalHours, automatically add the extraPavilionHourProduct with a quantity of 2.
-                // if a user selects a value of 'large' in guestCount, automatically add the jumboPavilionProduct.
+                // if a user selects a value of '4 hours' in totalHours, and the guestCount is 'large', the selectedProduct should be only the jumboPavilionFourHourProduct.
+                // if a user selects a value of '2 hours' in totalHours, and 'large' in guestCount, the selectedProduct should be only the jumboPavilionProduct.
+                // if a user selects a value of '4 hours' in totalHours, and guestCount is not 'large', the selectedProduct should be only the extraPavilionHourProduct.
+                // if a user selects a value of '2 hours' in totalHours, and guestCount is not 'large', the selectedProduct should be only the pavilionReservationProduct.
                 if (formTotalHours) {
                     // make handler async so we can refresh product lookup and UI after changing selection
                     formTotalHours.onChange(async () => {
                         productDisplayHTML = [];
+                        selectedProducts = []; // Reset to only include the new selection
                         
                         try {
                             const hours = formTotalHours.value;
-                            // Ensure selectedProducts is an array
-                            if (!Array.isArray(selectedProducts)) selectedProducts = selectedProducts ? [selectedProducts] : [];
-
-                            // Remove any previous pavilion extra-hour SKUs to avoid duplicates before adding anew
-                            selectedProducts = selectedProducts.filter(sku => sku !== extraPavilionHourProduct[0].value);
-
-                            if (hours === '3 hours') {
-                                selectedProducts.push(extraPavilionHourProduct[0].value);
-                                // add human readable label for display
-                                if (!productDisplayHTML.includes(extraPavilionHourProduct[0].label)) productDisplayHTML.push(extraPavilionHourProduct[0].label);
-                            } else if (hours === '4 hours') {
-                                // two extra hours -> add two SKUs so quantity will effectively be 2
-                                selectedProducts.push(extraPavilionHourProduct[0].value);
-                                selectedProducts.push(extraPavilionHourProduct[0].value);
-                                productDisplayHTML.push(extraPavilionHourProduct[0].label);
-                                productDisplayHTML.push(extraPavilionHourProduct[0].label); // add twice if hours is 4
-                            } else {
-                                // no extra hours selected -> nothing to add
-                            }
+                            const guestCount = formGuestCount?.value;
+                            
+                            // Based on hours and guest count, select the appropriate product
+                            if (hours === '4 hours') {
+                                if(guestCount === 'large') {
+                                    // 4 hours + large party = jumbo 4-hour product
+                                    selectedProducts.push(jumboPavilionFourHourProduct[0].value);
+                                    if (!productDisplayHTML.includes(jumboPavilionFourHourProduct[0].label)) productDisplayHTML.push(jumboPavilionFourHourProduct[0].label);
+                                } else {
+                                    // 4 hours + not large = 4-hour product
+                                    selectedProducts.push(extraPavilionHourProduct[0].value);
+                                    if (!productDisplayHTML.includes(extraPavilionHourProduct[0].label)) productDisplayHTML.push(extraPavilionHourProduct[0].label);
+                                }
+                            } else if (hours === '2 hours') {
+                                if(guestCount === 'large') {
+                                    // 2 hours + large party = jumbo 2-hour product
+                                    selectedProducts.push(jumboPavilionProduct[0].value);
+                                    if(!productDisplayHTML.includes(jumboPavilionProduct[0].label)) productDisplayHTML.push(jumboPavilionProduct[0].label);
+                                } else {
+                                    // 2 hours + not large = regular 2-hour product
+                                    selectedProducts.push(pavilionReservationProduct[0].value);
+                                    if(!productDisplayHTML.includes(pavilionReservationProduct[0].label)) productDisplayHTML.push(pavilionReservationProduct[0].label);
+                                }
+                            } 
 
                             console.log('After totalHours change, selectedProducts:', selectedProducts);
 
@@ -1076,20 +1136,37 @@ $w.onReady(function () {
                 if (formGuestCount) {
                     formGuestCount.onChange(async () => {
                         productDisplayHTML = [];
+                        selectedProducts = []; // Reset to only include the new selection
 
                         try {
                             const guestCountValue = formGuestCount.value;
-                            if (!Array.isArray(selectedProducts)) selectedProducts = selectedProducts ? [selectedProducts] : [];
+                            const hours = formTotalHours?.value;
 
-                            // Remove any previous jumbo pavilion SKU to avoid duplicates before adding anew
-                            selectedProducts = selectedProducts.filter(sku => sku !== jumboPavilionProduct[0].value);
-                            productDisplayHTML = (productDisplayHTML || []).filter(label => label !== jumboPavilionProduct[0].label);
-
+                            // Based on guest count and hours, select the appropriate product
                             if (guestCountValue === 'large') {
-                                selectedProducts.push(jumboPavilionProduct[0].value);
-                                if (!productDisplayHTML.includes(jumboPavilionProduct[0].label)) productDisplayHTML.push(jumboPavilionProduct[0].label);
+                                if(hours === '4 hours') {
+                                    // Large party + 4 hours = jumbo 4-hour product
+                                    selectedProducts.push(jumboPavilionFourHourProduct[0].value);
+                                    console.log('Large party, 4 hours:', selectedProducts);
+                                    if (!productDisplayHTML.includes(jumboPavilionFourHourProduct[0].label)) productDisplayHTML.push(jumboPavilionFourHourProduct[0].label);
+                                } else if(hours === '2 hours') {
+                                    // Large party + 2 hours = jumbo 2-hour product
+                                    selectedProducts.push(jumboPavilionProduct[0].value);
+                                    if (!productDisplayHTML.includes(jumboPavilionProduct[0].label)) productDisplayHTML.push(jumboPavilionProduct[0].label);
+                                }
+                            } else {
+                                // Not large party
+                                if(hours === '4 hours') {
+                                    // Not large + 4 hours = 4-hour product
+                                    selectedProducts.push(extraPavilionHourProduct[0].value);
+                                    if (!productDisplayHTML.includes(extraPavilionHourProduct[0].label)) productDisplayHTML.push(extraPavilionHourProduct[0].label);
+                                } else if(hours === '2 hours') {
+                                    // Not large + 2 hours = regular 2-hour product
+                                    selectedProducts.push(pavilionReservationProduct[0].value);
+                                    if (!productDisplayHTML.includes(pavilionReservationProduct[0].label)) productDisplayHTML.push(pavilionReservationProduct[0].label);
+                                }
                             }
-
+                               
                             console.log('After guestCount change, selectedProducts:', selectedProducts);
 
                             // Refresh productsToBuy by re-running the product lookup
@@ -1182,7 +1259,7 @@ $w.onReady(function () {
 
                     // Build a small lookup of local product definitions by their value (sku)
                     const localLookup = {};
-                    [extraPavilionHourProduct, jumboPavilionProduct, unit10Product].forEach(arr => {
+                    [extraPavilionHourProduct, jumboPavilionProduct, jumboPavilionFourHourProduct, unit10Product].forEach(arr => {
                         if (Array.isArray(arr)) arr.forEach(p => { if (p && p.value) localLookup[p.value] = p; });
                     });
 
@@ -1350,6 +1427,24 @@ async function validateHoaForm({ firstName, lastName, phone, email, signature } 
             if (formErrorMessage) formErrorMessage.text = errorMessage;
             return { valid: false };
         }
+        // Validate that all required documents have been reviewed and clicked on
+        // The form_document_links_xx in the Products Rich Collection must be the urls from the pdfs stored in the Wix Media library in the file 'documents'.
+        const requiredDocCount = formDocumentLinks.length;
+        let allReviewed = true;
+        const docElems = formDocumentsElems;
+        for (let i = 0; i < requiredDocCount && i < docElems.length; i++) {
+            const el = docElems[i];
+            const html = (el && el.html) ? el.html.toLowerCase() : '';
+            if (!html.includes('reviewed')) { // requires the word 'reviewed' in element HTML
+                allReviewed = false;
+                break;
+            }
+        }
+        if (!allReviewed) {
+            const errorMessage = 'Please review all required documents before submitting the form.';
+            if (formErrorMessage) formErrorMessage.text = errorMessage;
+            return { valid: false };
+        }
         if (formSignature) {
             if (!signature) {
                 const errorMessage = 'Please provide your signature.';
@@ -1393,6 +1488,46 @@ async function validateHoaForm({ firstName, lastName, phone, email, signature } 
                         return { valid: false };
                     }
                 }
+            }
+        }
+
+        if(formReservationDate) {
+            if (!formReservationDate.value) {
+                const errorMessage = 'Please select a reservation date.';
+                if (formErrorMessage) formErrorMessage.text = errorMessage;
+                return { valid: false };
+            }
+        }
+
+        if(formStartTime) {
+            if (!formStartTime.value) {
+                const errorMessage = 'Please select the time when you would like your reservation to begin.';
+                if (formErrorMessage) formErrorMessage.text = errorMessage;
+                return { valid: false };
+            }
+        }   
+
+        if(formTotalHours) {
+            if (!formTotalHours.value) {
+                const errorMessage = 'Please select the total hours for the pavilion reservation.';
+                if (formErrorMessage) formErrorMessage.text = errorMessage;
+                return { valid: false };
+            }
+        }   
+
+        if(formGuestCount) {
+            if (!formGuestCount.value) {
+                const errorMessage = 'Please select expected guest count for the pavilion reservation.';
+                if (formErrorMessage) formErrorMessage.text = errorMessage;
+                return { valid: false };
+            }
+        }   
+
+        if(formPoolUse) {
+            if (!formPoolUse.value) {
+                const errorMessage = 'Please indicate whether you will be using the pool during your pavilion reservation.';
+                if (formErrorMessage) formErrorMessage.text = errorMessage;
+                return { valid: false };
             }
         }
 
@@ -1447,29 +1582,11 @@ async function validateHoaForm({ firstName, lastName, phone, email, signature } 
             fobNumbers = new Array(10).fill('');
         }
 
-        // Validate that all required documents have been reviewed and clicked on
-        const requiredDocCount = formDocumentLinks.length;
-        let allReviewed = true;
-        const docElems = formDocumentsElems;
-        for (let i = 0; i < requiredDocCount && i < docElems.length; i++) {
-            const el = docElems[i];
-            const html = (el && el.html) ? el.html.toLowerCase() : '';
-            if (!html.includes('reviewed')) { // requires the word 'reviewed' in element HTML
-                allReviewed = false;
-                break;
-            }
-        }
-        if (!allReviewed) {
-            const errorMessage = 'Please review all required documents before submitting the form.';
-            if (formErrorMessage) formErrorMessage.text = errorMessage;
-            return { valid: false };
-        }
-
         return { valid: true, fobNumbers };
 
     } catch (error) {
         console.error('Error in validateHoaForm:', error);
-        if (formErrorMessage) formErrorMessage.text = 'Error validating form. Please check your entries.';
+        if (formErrorMessage) formErrorMessage.text = 'Error validating form. Try again later.';
         return { valid: false };
     }
 }
@@ -1543,8 +1660,7 @@ async function submitHoaForm() {
             "form_rec_reserve_time": formStartTime ? formStartTime.value : null,
             "form_rec_reserve_num_hours": formTotalHours ? formTotalHours.value : null,
             "form_rec_reserve_guest_number": formGuestCount ? formGuestCount.value : null,
-            "form_pool_use": formPoolUse ? formPoolUse.value : null,
-            "form_pool_req_lifeguard": formLifeGuard ? formLifeGuard.value : null
+            "form_pool_use": formPoolUse ? formPoolUse.value : null
         };
         wixData.insert(formCollectionName, itemToInsert)
             .then((insertedItem) => {
