@@ -2,6 +2,7 @@
 import wixData from 'wix-data';
 import wixStores from 'wix-stores';
 import wixLocation from 'wix-location';
+import wixEcomFrontend from 'wix-ecom-frontend';
 
 // Global variables to store state
 let selectedAddress = '';
@@ -202,7 +203,7 @@ let formBoxHoaTier3 = 'hoaDuesTier3State';
 let formBoxRecMember = 'recMemberState';
 let formBoxKeyFob = 'keyFobState';
 let formBoxPavilion = 'pavilionState';
-let backButton = $w('#text127');
+let backButton = $w('#group7');
 
 // These elements will change depending on the form shown
 // They are defined in an object for each form, then the helper functions use the object to store the elements in a reusable variable.
@@ -978,6 +979,7 @@ $w.onReady(function () {
                             break;
 
                         case 'hoa-dues-tier-three':
+                        case 'test-product-physical':
                             matchedState = formBoxHoaTier3;
                             formName = 'hoa_dues_tier_three';
                             formCollectionName = 'FormSubsHoaDuesTier3';
@@ -994,7 +996,6 @@ $w.onReady(function () {
                         case 'pavilion-2-hrs':
                         case 'pavilion-addl-hour':
                         case 'pavilion-jumbo':
-                        case 'test-product-physical':
                             matchedState = formBoxPavilion;
                             formName = 'rec_reserve_pavilion';
                             formCollectionName = 'formSubsRecReservePavilion';
@@ -1673,20 +1674,32 @@ async function submitHoaForm() {
      
         // Show success message before redirecting
         console.log('Form submitted successfully, adding to cart...');
-        
         console.log('Final selectedProducts before addToCart:', selectedProducts);
-
         console.log('Products to add to cart:', productsToBuy);
         
         if (productsToBuy.length > 0) {
             await addToCart(productsToBuy);
         } else {
-            console.warn('No valid products found via dynamic lookup, add to cart failed...');
+            console.warn('No valid products found via dynamic lookup, add to cart skipped...');
         }
 
-        // Redirect to checkout
-        console.log('Redirecting to checkout...');
-        wixLocation.to('/checkout');
+        // ✅ Use Wix eCom frontend API instead of manual /cart URL
+        console.log('Refreshing cart UI and navigating to cart page via wix-ecom-frontend...');
+
+        try {
+            // This syncs the cart UI (icon, side cart, etc.) with the backend cart
+            await wixEcomFrontend.refreshCart();
+            console.log('refreshCart completed successfully.');
+        } catch (refreshErr) {
+            console.warn('refreshCart failed, will still try to navigate to cart:', refreshErr);
+        }
+
+        try {
+            await wixEcomFrontend.navigateToCartPage();
+            console.log('navigateToCartPage completed. Browser should now be on the Cart page.');
+        } catch (navErr) {
+            console.error('navigateToCartPage failed:', navErr);
+        }
         
     } catch (error) {
         console.error('Error in function submitHoaForm:', error);
@@ -1696,6 +1709,7 @@ async function submitHoaForm() {
 
     }
 }
+// ------------------------------------------ Add to cart functionality ------------------------------------------
 
 // Function to add selected products to cart
 async function addToCart(productsToBuy) {
@@ -1706,16 +1720,30 @@ async function addToCart(productsToBuy) {
             console.warn('No products to add to cart');
             return;
         }
+
+        const residentAddress = formPropertyAddress.value;
+        console.log('Using residentAddress for customTextFields:', residentAddress);
         
         const productsToAdd = [];
         
         for (const product of productsToBuy) {
             if (product.productId && product.productId !== '') {
-                productsToAdd.push({
+                const itemToAdd = {
                     productId: product.productId,
-                    quantity: 1
-                });
-                console.log(`Preparing to add product: ${product.sku} (ID: ${product.productId})`);
+                    quantity: 1,
+                    // ✅ customTextFields go under options
+                    options: {
+                        customTextFields: [
+                            {
+                                title: "residentAddress",
+                                value: residentAddress
+                            }
+                        ]
+                    }
+                };
+
+                productsToAdd.push(itemToAdd);
+                console.log(`Preparing to add product: ${product.sku} (ID: ${product.productId})`, itemToAdd);
             } else {
                 console.warn(`Skipping product with missing ID:`, product);
             }
@@ -1725,16 +1753,16 @@ async function addToCart(productsToBuy) {
             console.log('Products to add using wix-stores API:', productsToAdd);
             
             try {
-                await wixStores.cart.addProducts(productsToAdd);
-                console.log("Products added to cart successfully using wix-stores API");
+                const updatedCart = await wixStores.cart.addProducts(productsToAdd);
+                console.log("Products added to cart successfully with customTextFields. Updated cart:", updatedCart);
             } catch (storesError) {
                 console.error("Error with wix-stores API, trying alternative method:", storesError);
                 
                 // Fallback: try adding products one by one
                 for (const productToAdd of productsToAdd) {
                     try {
-                        await wixStores.cart.addProducts([productToAdd]);
-                        console.log(`Successfully added individual product: ${productToAdd.productId}`);
+                        const updatedCart = await wixStores.cart.addProducts([productToAdd]);
+                        console.log(`Successfully added individual product with customTextFields: ${productToAdd.productId}`, updatedCart);
                     } catch (individualError) {
                         console.error(`Failed to add individual product ${productToAdd.productId}:`, individualError);
                     }
@@ -1748,5 +1776,7 @@ async function addToCart(productsToBuy) {
         console.error("Error adding products to cart:", error);
     }
 }
+
+
 
 
