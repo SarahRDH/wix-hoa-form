@@ -686,53 +686,57 @@ $w.onReady(function () {
     residentAddressDropdown.onChange(async () => {
         const householdId = residentAddressDropdown.value;
         selectedAddress = householdId; // Store selected address globally
+
         // Reset any prior auto-selected SKUs (e.g. Unit 10) for a new selection
         autoSelectedProducts = [];
+
         console.log('Dropdown value (householdId):', householdId);
         
-        if (householdId == '' || householdId == 'undefined') { 
+        if (!householdId || householdId === 'undefined') { 
             selectProductStatebox.collapse();
             console.log('No resident address was entered.');
             return;
         }
         
-        // Reset variables and UI state
+        // Reset variables and UI state *per selection*
         let hh = null;
         selectProductStatebox.collapse();
+
+        // 🔥 IMPORTANT: reset membership flags for each new household
+        isHoaMember = false;
+        isRecMember = false;
+        tierNumber = '';
+        formName = '';
+        formCollectionName = '';
         
         console.log('Searching datasetResidents...');
 
         const dataset = $w('#datasetResidents');
 
         try {
-            // IMPORTANT: Clear any existing filters completely before setting new ones
+            // Clear any existing filters
             await dataset.setFilter(wixData.filter());
-            
-            // Small delay to ensure filter is cleared
             await new Promise(resolve => setTimeout(resolve, 100));
             
-            // Set the filter to find matching address
+            // Filter to find matching address
             await dataset.setFilter(wixData.filter().eq('full_address', householdId));
             
-            // Get items with proper parameters
-            const result = await dataset.getItems(0, 50); // fromIndex: 0, count: 50
-            
+            const result = await dataset.getItems(0, 50);
             const items = (result && result.items) ? result.items : [];
+            
             if (items.length > 0) {
                 console.log('Found matching item in dataset:', items[0]);
                 residentDropdownMessage.hide();
                 hh = items[0];
-                currentHousehold = hh; // Store household data globally
-                // Clear autoSelectedProducts when a household is resolved; will set below only if unit10 detected
+                currentHousehold = hh;
                 autoSelectedProducts = [];
-                console.log('hh: tier number', hh.tier_number);
             } else {
                 console.log('No matching address found for:', householdId);
                 residentDropdownMessage.show();
 
-                // Try alternative approach: get all items and search manually
-                await dataset.setFilter(wixData.filter()); // Clear filter
-                const allResult = await dataset.getItems(0, 1000); // Get more items
+                // Try all items manually as fallback
+                await dataset.setFilter(wixData.filter());
+                const allResult = await dataset.getItems(0, 1000);
                 const allItems = (allResult && allResult.items) ? allResult.items : [];
                 
                 console.log('Searching through', allItems.length, 'items manually...');
@@ -742,8 +746,7 @@ $w.onReady(function () {
                     console.log('Found matching item manually:', matchingItem);
                     residentDropdownMessage.hide();
                     hh = matchingItem;
-                    currentHousehold = hh; // Store household data globally
-                    // Clear autoSelectedProducts when a household is resolved; will set below only if unit10 detected
+                    currentHousehold = hh;
                     autoSelectedProducts = [];
                 } else {
                     console.log('Still no matching address found');
@@ -753,147 +756,140 @@ $w.onReady(function () {
             }
         } catch (error) {
             console.error('Dataset error:', error);
+            return;
         }
 
-        // Decide which products to show based on HOA / Rec member status and tier
-        if(hh?.hoa_dues_paid == true || hh?.override_hoa_dues == true) {
-            isHoaMember = true;
-        }
-        if(hh?.rec_dues_paid == true || hh?.override_rec_dues == true) {
-            isRecMember = true;
-        }
+        // ----- Decide which products to show based on HOA / Rec member status and tier -----
+        const hoaPaid = !!hh?.hoa_dues_paid || !!hh?.override_hoa_dues;
+        const recPaid = !!hh?.rec_dues_paid || !!hh?.override_rec_dues;
+
+        isHoaMember = hoaPaid;
+        isRecMember = recPaid;
+
+        console.log('Resolved dues status for household:', {
+            address: hh.full_address,
+            hoa_dues_paid: hh?.hoa_dues_paid,
+            override_hoa_dues: hh?.override_hoa_dues,
+            rec_dues_paid: hh?.rec_dues_paid,
+            override_rec_dues: hh?.override_rec_dues,
+            isHoaMember,
+            isRecMember
+        });
+
+        // Normalize tier so "1" and 1 both work
+        const tier = Number(hh?.tier_number);
+        console.log('Normalized tier:', tier, 'raw tier_number:', hh?.tier_number);
 
         if (isHoaMember) { 
-            switch(hh?.tier_number) {
+            switch (tier) {
                 case 1: {
-                    console.log('tier 1');
+                    console.log('HOA member, tier 1');
                     tierNumber = '1';
                     selectProductStatebox.changeState('isHoaMemberIsTier1');
-                    const radioGroup11 = $w('#radioGroup11'); // checkbox for user to select products
+                    const radioGroup11 = $w('#radioGroup11');
                     
-                    if(isRecMember) {
-                        // HOA and Rec dues already paid - only show rec products
+                    if (isRecMember) {
                         radioGroup11.options = availableRecMemberProducts;
                     } else {
-                        // HOA paid but rec dues not paid - only show rec dues
                         radioGroup11.options = availableHoaMemberTier1and2Products;
                     }
                     break;
                 }
 
                 case 2: {
-                    console.log('tier 2');
+                    console.log('HOA member, tier 2');
                     tierNumber = '2';
                     selectProductStatebox.changeState('isHoaMemberIsTier2');
-                    const radioGroup13 = $w('#radioGroup13'); // checkbox for user to select products
+                    const radioGroup13 = $w('#radioGroup13');
                     
-                    if(isRecMember) {
-                        // HOA and Rec dues already paid - only show rec products
+                    if (isRecMember) {
                         radioGroup13.options = availableRecMemberProducts;
                     } else {
-                        // HOA paid but rec dues not paid - only show rec dues
                         radioGroup13.options = availableHoaMemberTier1and2Products;
                     }
                     break;
                 }
 
                 case 3: {
-                    console.log('tier 3');
+                    console.log('HOA member, tier 3');
                     tierNumber = '3';
                     selectProductStatebox.changeState('isHoaMemberIsTier3');
                     const radioGroup15 = $w('#radioGroup15');
                     // Tier 3 rec dues included with HOA dues - only show rec products
                     radioGroup15.options = availableRecMemberProducts;
-
                     break;
                 }
 
-                case '':
-                case 'undefined':
                 default:
-                    console.log('is HOA member, but tier number is empty or undefined');
+                    console.log('is HOA member, but tier number is empty or invalid:', hh?.tier_number);
                     break;
             }
         } else {
             let isUnit10 = false;
-            // Check if Unit 10 resident, look at unit number in Residents Main Collection
             if (hh?.unit_number && hh.unit_number.toLowerCase().includes('10')) {
                 isUnit10 = true;
                 console.log('Resident is in Unit 10');
             }
-            console.log('HOA dues not paid yet' + hh?.hoa_dues_paid + hh?.tier_number);
+            console.log('HOA dues not paid yet', hh?.hoa_dues_paid, 'tier:', hh?.tier_number);
             
-            switch(hh?.tier_number) {
+            switch (tier) {
                 case 1: {
-                    console.log('tier 1');
+                    console.log('NOT HOA member, tier 1');
                     tierNumber = '1';
                     formName = 'hoa_dues_tier_one_and_two';
                     formCollectionName = 'formSubsHoaDuesTier1and2';
                     selectProductStatebox.changeState('notHoaMemberIsTier1');
                     const radioGroup10 = $w('#radioGroup10');
-                    // Only show available options - HOA Dues only
                     radioGroup10.options = availableHoaTier1Products;
 
                     if (isUnit10) {
-                        // Add Unit 10 product option
                         console.log('Added Unit 10 product option for resident');
-                        // Auto-include Unit 10 SKU when non-HOA resident
                         autoSelectedProducts = [unit10Product[0].value];
                     }
                     break;
                 }
 
                 case 2: {
-                    console.log('tier 2');
+                    console.log('NOT HOA member, tier 2');
                     tierNumber = '2';
                     formName = 'hoa_dues_tier_one_and_two';
                     formCollectionName = 'formSubsHoaDuesTier1and2';
                     selectProductStatebox.changeState('notHoaMemberIsTier2');
                     const radioGroup12 = $w('#radioGroup12');
-                    
-                    // Only show available options - HOA Dues only
                     radioGroup12.options = availableHoaTier2Products;
 
                     if (isUnit10) {
-                        // Add Unit 10 product option
                         console.log('Added Unit 10 product option for resident');
-                        // Auto-include Unit 10 SKU when non-HOA resident
                         autoSelectedProducts = [unit10Product[0].value];
                     }
                     break;
                 }
 
                 case 3: {
-                    console.log('tier 3');
+                    console.log('NOT HOA member, tier 3');
                     tierNumber = '3';
                     formName = 'hoa_dues_tier_three';
                     formCollectionName = 'FormSubsHoaDuesTier3';
                     selectProductStatebox.changeState('notHoaMemberIsTier3');
                     const radioGroup14 = $w('#radioGroup14');
-                    console.log('radioGroup14:', radioGroup14, 'statebox:', selectProductStatebox);
-                    // Only show available options - HOA Dues only
                     radioGroup14.options = availableHoaTier3Products;
 
                     if (isUnit10) {
-                        // Add Unit 10 product option
                         console.log('Added Unit 10 product option for resident');
-                        // Auto-include Unit 10 SKU when non-HOA resident
                         autoSelectedProducts = [unit10Product[0].value];
                     }
-
                     break;
                 }
 
-                case '':
-                case 'undefined':
                 default:
-                    console.log('is not HOA member and tier number is empty or undefined');
+                    console.log('is not HOA member and tier number is empty or invalid:', hh?.tier_number);
                     break;
             }
         }
 
         selectProductStatebox.expand();
     });
+
 // ------------------------------------------Display the forms in the multi-state box ------------------------------------------
     //if backButton exists, set onClick to go back to select products state
     if (backButton) {
@@ -980,6 +976,7 @@ $w.onReady(function () {
 
                         case 'hoa-dues-tier-three':
                         case 'test-product-physical':
+                        case 'hoa-and-rec-dues-bundle':
                             matchedState = formBoxHoaTier3;
                             formName = 'hoa_dues_tier_three';
                             formCollectionName = 'FormSubsHoaDuesTier3';
