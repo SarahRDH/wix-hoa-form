@@ -960,6 +960,7 @@ $w.onReady(function () {
                     switch (sel) {
                         case 'rec-center-resident':
                         case 'rec-center-non-resident':
+                        case 'test-product-physical':
                             matchedState = formBoxRecMember;
                             formName = 'rec_membership';
                             formCollectionName = 'formSubsRecMember';
@@ -975,7 +976,6 @@ $w.onReady(function () {
                             break;
 
                         case 'hoa-dues-tier-three':
-                        case 'test-product-physical':
                         case 'hoa-and-rec-dues-bundle':
                             matchedState = formBoxHoaTier3;
                             formName = 'hoa_dues_tier_three';
@@ -1718,61 +1718,96 @@ async function addToCart(productsToBuy) {
             return;
         }
 
-        const residentAddress = formPropertyAddress.value;
+        // Use the address from the form (fallback to selectedAddress)
+        const residentAddress = (formPropertyAddress && formPropertyAddress.value) || selectedAddress || '';
         console.log('Using residentAddress for customTextFields:', residentAddress);
-        
+
+        // 1) Get the current cart and clear out any existing line items
+        const existingCart = await wixStores.cart.getCurrentCart();
+        console.log('Existing cart BEFORE clearing:', existingCart);
+
+        if (existingCart.lineItems && existingCart.lineItems.length > 0) {
+            const idsToRemove = existingCart.lineItems.map(li => li.id);
+            console.log('Clearing previous line items from cart, lineItemIds:', idsToRemove);
+
+            // Remove all current line items so this flow controls the cart contents
+            await wixStores.cart.removeProducts(idsToRemove);
+
+            const clearedCart = await wixStores.cart.getCurrentCart();
+            console.log('Cart AFTER clearing:', clearedCart);
+        } else {
+            console.log('Cart was already empty before adding new products.');
+        }
+
+        // 2) Build the list of products to add, with customTextFields for residentAddress
         const productsToAdd = [];
-        
+
         for (const product of productsToBuy) {
             if (product.productId && product.productId !== '') {
-                const itemToAdd = {
+                const lineItemToAdd = {
                     productId: product.productId,
                     quantity: 1,
-                    // ✅ customTextFields go under options
+                    // Attach residentAddress so backend can update collections
                     options: {
-                        customTextFields: [
+                        customTextFields: residentAddress ? [
                             {
                                 title: "residentAddress",
                                 value: residentAddress
                             }
-                        ]
+                        ] : []
                     }
                 };
 
-                productsToAdd.push(itemToAdd);
-                console.log(`Preparing to add product: ${product.sku} (ID: ${product.productId})`, itemToAdd);
+                productsToAdd.push(lineItemToAdd);
+
+                console.log(`Preparing to add product: ${product.sku} (ID: ${product.productId})`, lineItemToAdd);
             } else {
                 console.warn(`Skipping product with missing ID:`, product);
             }
         }
-        
-        if (productsToAdd.length > 0) {
-            console.log('Products to add using wix-stores API:', productsToAdd);
+
+        if (productsToAdd.length === 0) {
+            console.warn('No valid products to add to cart after processing product list.');
+            return;
+        }
+
+        console.log('Products to add using wix-stores API:', productsToAdd);
+
+        // 3) Add only the new items
+        try {
+            const updatedCart = await wixStores.cart.addProducts(productsToAdd);
+            console.log("Products added to cart successfully with customTextFields. Updated cart:", updatedCart);
+        } catch (storesError) {
+            console.error("Error with wix-stores API, trying alternative method:", storesError);
             
-            try {
-                const updatedCart = await wixStores.cart.addProducts(productsToAdd);
-                console.log("Products added to cart successfully with customTextFields. Updated cart:", updatedCart);
-            } catch (storesError) {
-                console.error("Error with wix-stores API, trying alternative method:", storesError);
-                
-                // Fallback: try adding products one by one
-                for (const productToAdd of productsToAdd) {
-                    try {
-                        const updatedCart = await wixStores.cart.addProducts([productToAdd]);
-                        console.log(`Successfully added individual product with customTextFields: ${productToAdd.productId}`, updatedCart);
-                    } catch (individualError) {
-                        console.error(`Failed to add individual product ${productToAdd.productId}:`, individualError);
-                    }
+            // Fallback: add products one by one
+            for (const productToAdd of productsToAdd) {
+                try {
+                    const updatedCart = await wixStores.cart.addProducts([productToAdd]);
+                    console.log(`Successfully added individual product with customTextFields: ${productToAdd.productId}`, updatedCart);
+                } catch (individualError) {
+                    console.error(`Failed to add individual product ${productToAdd.productId}:`, individualError);
                 }
             }
-        } else {
-            console.warn('No valid products to add to cart');
         }
-        
+
+        // If you're still using wix-ecom-frontend's cart refresh + navigate:
+        try {
+            console.log('Refreshing cart UI and navigating to cart page via wix-ecom-frontend...');
+            const { cart: ecomCart } = await import('wix-ecom-frontend');
+            await ecomCart.refreshCart();
+            console.log('refreshCart completed successfully.');
+            await ecomCart.navigateToCartPage();
+            console.log('navigateToCartPage completed. Browser should now be on the Cart page.');
+        } catch (ecomErr) {
+            console.warn('Could not refresh or navigate via wix-ecom-frontend (this is optional):', ecomErr);
+        }
+
     } catch (error) {
         console.error("Error adding products to cart:", error);
     }
 }
+
 
 
 
