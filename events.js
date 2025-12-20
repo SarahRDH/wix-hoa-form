@@ -4,11 +4,30 @@ import { emailRecCenterForm } from 'backend/recCenterEmail.jsw';
 const RESIDENTS_COLLECTION = "Import1"; 
 
 // Helper: update payment_successful_date on the NEWEST matching form submission
-async function updateCollectionPaymentDate(collectionId, residentAddress, paymentDate) {
+async function updateCollectionPaymentDate(collectionId, residentAddress, paymentDate, formPayload = null) {
     try {
         console.log(`Updating payment_successful_date in ${collectionId} for address:`, residentAddress);
 
-        // Find newest record for this address (by _createdDate)
+        // If the order included a sanitized form payload with the inserted record id, prefer updating by id
+        if (formPayload && formPayload.form_record_id) {
+            const targetCollection = formPayload.form_collection || collectionId;
+            const formId = formPayload.form_record_id;
+            try {
+                console.log(`Attempting to update by id ${formId} in collection ${targetCollection}`);
+                const existing = await wixData.get(targetCollection, formId);
+                if (existing) {
+                    existing.payment_successful_date = paymentDate;
+                    const updated = await wixData.update(targetCollection, existing);
+                    console.log(`Updated record by id in ${targetCollection}:`, JSON.stringify(updated, null, 2));
+                    return;
+                }
+            } catch (errById) {
+                console.warn(`Could not update by id ${formId} in ${targetCollection}, falling back to address query:`, errById);
+                // fall through to address-based update
+            }
+        }
+
+        // Fallback: Find newest record for this address (by _createdDate)
         const result = await wixData.query(collectionId)
             .eq("form_property_address", residentAddress)
             .descending("_createdDate")
@@ -58,7 +77,7 @@ export async function wixStores_onOrderPaid(event) {
             "hoa-and-rec-dues-bundle",
             "hoa-dues-tier-two",
             "hoa-dues-tier-three",
-            "test-product-physical" // for testing purposes
+            "test-product-physical" // for testing purposes - needs to be assigned to the same form skus as the form in wix-collection-query-hoa.js
         ];
 
         // 🔹 SKUs that represent Rec dues payments (for Residents.rec_dues_paid)
@@ -66,7 +85,6 @@ export async function wixStores_onOrderPaid(event) {
             "rec-center-non-resident",
             "rec-center-resident",
             "hoa-and-rec-dues-bundle", // bundle covers Rec dues too
-            "test-product-physical" // for testing purposes
         ];
 
         // 🔹 SKUs that trigger payment_successful_date updates in each form collection
@@ -78,12 +96,13 @@ export async function wixStores_onOrderPaid(event) {
         const HOA_T3_FORM_SKUS = [
             "hoa-dues-tier-three",
             "hoa-and-rec-dues-bundle",
-            "test-product-physical" // for testing purposes
+            "test-product-physical" // for testing purposes - needs to be assigned to the same form skus as the form in wix-collection-query-hoa.js
         ];
 
         const REC_MEMBER_FORM_SKUS = [
             "rec-center-non-resident",
-            "rec-center-resident"
+            "rec-center-resident",
+            "test-product-physical" // for testing purposes - needs to be assigned to the same form skus as the form in wix-collection-query-hoa.js
         ];
 
         const REC_KEY_FOB_FORM_SKUS = [
@@ -107,6 +126,7 @@ export async function wixStores_onOrderPaid(event) {
         let updatePavilionForms = false;
 
         let residentAddress = null;
+        let formData = null;
 
         let orderSkus = [];
         // 🔍 Inspect each line item
@@ -164,12 +184,20 @@ export async function wixStores_onOrderPaid(event) {
             const addressField = allFields.find(
                 (f) => f && f.title === "residentAddress" && f.value
             );
+            const formFields = allFields.find(
+                (f) => f && f.title === "formDetails" && f.value
+            );
 
             if (addressField) {
                 residentAddress = addressField.value;
                 console.log("FOUND residentAddress in order:", residentAddress);
                 // don't break; keep scanning SKUs in other items
+                if (formFields) {
+                    formData = JSON.parse(formFields.value);
+                    console.log("FOUND formFields in order:", formData);
+                }
             }
+
         }
 
         console.log("hoaDuesPurchased:", hoaDuesPurchased);
@@ -239,55 +267,59 @@ export async function wixStores_onOrderPaid(event) {
 
         if (updateTier1and2Forms) {
             updates.push(
-                updateCollectionPaymentDate("formSubsHoaDuesTier1and2", residentAddress, paymentDate)
+                updateCollectionPaymentDate("formSubsHoaDuesTier1and2", residentAddress, paymentDate, formData)
             );
         }
 
         if (updateTier3Forms) {
             updates.push(
-                updateCollectionPaymentDate("FormSubsHoaDuesTier3", residentAddress, paymentDate)
+                updateCollectionPaymentDate("FormSubsHoaDuesTier3", residentAddress, paymentDate, formData)
             );
             emailUpdates.push({
                 collectionId: "FormSubsHoaDuesTier3",
                 residentAddress,
                 orderId: event._id,
-                skus: orderSkus   
+                skus: orderSkus,
+                formInfo: formData  
             });
         }
 
         if (updateRecMemberForms) {
             updates.push(
-                updateCollectionPaymentDate("formSubsRecMember", residentAddress, paymentDate)
+                updateCollectionPaymentDate("formSubsRecMember", residentAddress, paymentDate, formData)
             );
             emailUpdates.push({
                 collectionId: "formSubsRecMember",
                 residentAddress,
                 orderId: event._id,
-                skus: orderSkus   
+                skus: orderSkus,
+                formInfo: formData  
             });
         }
 
         if (updateKeyFobForms) {
             updates.push(
-                updateCollectionPaymentDate("formSubsRecNewKeyFob", residentAddress, paymentDate)
+                updateCollectionPaymentDate("formSubsRecNewKeyFob", residentAddress, paymentDate, formData)
             );
             emailUpdates.push({
                 collectionId: "formSubsRecNewKeyFob",
                 residentAddress,
                 orderId: event._id,
-                skus: orderSkus   
+                skus: orderSkus,
+                formInfo: formData   
             });
         }
 
         if (updatePavilionForms) {
             updates.push(
-                updateCollectionPaymentDate("formSubsRecReservePavilion", residentAddress, paymentDate)
+                updateCollectionPaymentDate("formSubsRecReservePavilion", residentAddress, paymentDate, formData)
             );
             emailUpdates.push({
                 collectionId: "formSubsRecReservePavilion",
                 residentAddress,
                 orderId: event._id,
-                skus: orderSkus   
+                skus: orderSkus,
+                formInfo: formData  
             });
         }
 

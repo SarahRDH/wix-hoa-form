@@ -28,8 +28,22 @@ function safe(value) {
  * @param {string} params.residentAddress - Address stored in form_property_address
  * @param {string} [params.orderId] - Wix Stores order ID
  * @param {string[]|string} [params.skus] - Array of SKUs or comma-separated string
+ * @param {string} params.form_name
+ * @param {string} params.first_name
+ * @param {string} params.form_phone_number
+ * @param {string} params.form_email
+ * @param {string} params.form_adults
+ * @param {string} params.form_dependents
+ * @param {string} params.form_has_key_fob
+ * @param {string} params.form_product_sku_01
+ * @param {string} params.form_documents_signed
+ * @param {string} params.form_rec_reserve_date
+ * @param {string} params.form_rec_reserve_time
+ * @param {string} params.form_rec_reserve_num_hours
+ * @param {string} params.form_rec_reserve_guest_number
+ * @param {string} params.form_pool_use
  */
-export async function emailRecCenterForm({ collectionId, residentAddress, orderId, skus }) {
+export async function emailRecCenterForm({ collectionId, residentAddress, orderId, skus, formInfo = null }) {
     try {
         console.log(`Sending rec center email for ${collectionId}, address: ${residentAddress}`);
 
@@ -44,20 +58,27 @@ export async function emailRecCenterForm({ collectionId, residentAddress, orderI
 
         const collectionLabel = collectionLabelMap[collectionId] || collectionId;
 
-        // Get the newest form record for this address
-        const result = await wixData.query(collectionId)
-            .eq("form_property_address", residentAddress)
-            .descending("_createdDate")
-            .limit(1)
-            .find();
+        // If caller provided formInfo (from customTextFields), use it directly; otherwise query the collection
+        let form = null;
+        if (formInfo && typeof formInfo === 'object' && Object.keys(formInfo).length > 0) {
+            form = formInfo;
+            console.log('Using provided formInfo from order customTextFields:', JSON.stringify(form, null, 2));
+        } else {
+            // Get the newest form record for this address
+            const result = await wixData.query(collectionId)
+                .eq("form_property_address", residentAddress)
+                .descending("_createdDate")
+                .limit(1)
+                .find();
 
-        if (!result.items.length) {
-            console.log(`No form records found in ${collectionId} for address: ${residentAddress}`);
-            return;
+            if (!result.items.length) {
+                console.log(`No form records found in ${collectionId} for address: ${residentAddress}`);
+                return;
+            }
+
+            form = result.items[0];
+            console.log("Newest form record for email:", JSON.stringify(form, null, 2));
         }
-
-        const form = result.items[0];
-        console.log("Newest form record for email:", JSON.stringify(form, null, 2));
 
         // ---------- Extract fields and normalize them to strings ----------
 
@@ -120,6 +141,7 @@ export async function emailRecCenterForm({ collectionId, residentAddress, orderI
 
         // SKUs from order (coming from events.js)
         const skuString = Array.isArray(skus) ? skus.join(", ") : safe(skus);
+        const formString = JSON.stringify(form || {}, null, 2);
 
         // ---------- Send triggered email with named variables ----------
         await triggeredEmails.emailContact(REC_TRIGGER_EMAIL_ID, REC_MANAGER_CONTACT_ID, {
@@ -130,6 +152,7 @@ export async function emailRecCenterForm({ collectionId, residentAddress, orderI
                 collectionLabel,
                 orderId: safe(orderId),
                 skus: skuString,
+                formInfo: formString,
 
                 // Generic form fields
                 formName,

@@ -1588,7 +1588,7 @@ async function validateHoaForm({ firstName, lastName, phone, email, signature } 
         return { valid: false };
     }
 }
-
+let itemToInsert = null;
 // Function to submit HOA form without using the submit connection to the button in the Wix UI
 async function submitHoaForm() {
     try {
@@ -1631,7 +1631,7 @@ async function submitHoaForm() {
 
         console.log('Selected products to submit:', selectedProducts);
 
-        let itemToInsert = {
+        itemToInsert = {
             "form_name": formName,
             "form_property_address": propertyAddress, // Value from an input element
             "first_name": firstName,
@@ -1660,14 +1660,17 @@ async function submitHoaForm() {
             "form_rec_reserve_guest_number": formGuestCount ? formGuestCount.value : null,
             "form_pool_use": formPoolUse ? formPoolUse.value : null
         };
-        wixData.insert(formCollectionName, itemToInsert)
-            .then((insertedItem) => {
-                console.log("Item inserted successfully:", insertedItem);
-            })
-            .catch((error) => {
-                console.error("Error inserting item:", error);
-                // Add any error handling here
-            });
+        // Insert the form record and capture the inserted id so we can attach it to the order
+        try {
+            const insertedItem = await wixData.insert(formCollectionName, itemToInsert);
+            console.log("Item inserted successfully:", insertedItem);
+            // Store the record id and collection for later inclusion in the order custom fields
+            itemToInsert.form_record_id = insertedItem._id;
+            itemToInsert.form_collection = formCollectionName;
+        } catch (error) {
+            console.error("Error inserting item:", error);
+            // proceed without record id if insert failed
+        }
      
         // Show success message before redirecting
         console.log('Form submitted successfully, adding to cart...');
@@ -1675,7 +1678,17 @@ async function submitHoaForm() {
         console.log('Products to add to cart:', productsToBuy);
         
         if (productsToBuy.length > 0) {
-            await addToCart(productsToBuy);
+            // Prepare a sanitized copy of the form data to include in customTextFields
+            const sanitized = {};
+            Object.keys(itemToInsert).forEach(key => {
+                // exclude signature and any system/internal fields
+                if (key === 'form_signature') return;
+                if (key.startsWith('_')) return;
+                sanitized[key] = itemToInsert[key];
+            });
+
+            // Pass sanitized form details to addToCart so they are attached to the order
+            await addToCart(productsToBuy, sanitized);
         } else {
             console.warn('No valid products found via dynamic lookup, add to cart skipped...');
         }
@@ -1709,7 +1722,7 @@ async function submitHoaForm() {
 // ------------------------------------------ Add to cart functionality ------------------------------------------
 
 // Function to add selected products to cart
-async function addToCart(productsToBuy) {
+async function addToCart(productsToBuy, sanitizedFormPayload = null) {
     try {
         console.log('Adding products to cart:', productsToBuy);
         
@@ -1719,10 +1732,10 @@ async function addToCart(productsToBuy) {
         }
 
         // Use the address from the form (fallback to selectedAddress)
-        const residentAddress = (formPropertyAddress && formPropertyAddress.value) || selectedAddress || '';
+        const residentAddress = formPropertyAddress.value;
         console.log('Using residentAddress for customTextFields:', residentAddress);
 
-        // 1) Get the current cart and clear out any existing line items
+        // 1) Get the current cart and clear out any existing line items (prevents multiples added at checkout)
         const existingCart = await wixStores.cart.getCurrentCart();
         console.log('Existing cart BEFORE clearing:', existingCart);
 
@@ -1741,20 +1754,40 @@ async function addToCart(productsToBuy) {
 
         // 2) Build the list of products to add, with customTextFields for residentAddress
         const productsToAdd = [];
-
+console.log(itemToInsert.first_name);
         for (const product of productsToBuy) {
             if (product.productId && product.productId !== '') {
+                // Build the customTextFields array: include residentAddress and a sanitized formDetails JSON
+                const customFields = [];
+                if (residentAddress) {
+                    customFields.push({ title: "residentAddress", value: residentAddress });
+                }
+
+                // Prefer the sanitized payload passed in (from submit flow). Fallback to global itemToInsert if needed.
+                const payloadSource = (sanitizedFormPayload && typeof sanitizedFormPayload === 'object') ? sanitizedFormPayload : (itemToInsert || {});
+
+                if (payloadSource && Object.keys(payloadSource).length > 0) {
+                    // Ensure we include the record id and collection if available on itemToInsert
+                    const formPayload = Object.assign({}, payloadSource);
+                    if (itemToInsert && itemToInsert.form_record_id) {
+                        formPayload.form_record_id = itemToInsert.form_record_id;
+                    }
+                    if (itemToInsert && itemToInsert.form_collection) {
+                        formPayload.form_collection = itemToInsert.form_collection;
+                    }
+
+                    try {
+                        customFields.push({ title: "formDetails", value: JSON.stringify(formPayload) });
+                    } catch (e) {
+                        console.warn('Could not stringify form payload for customTextFields:', e);
+                    }
+                }
+
                 const lineItemToAdd = {
                     productId: product.productId,
                     quantity: 1,
-                    // Attach residentAddress so backend can update collections
                     options: {
-                        customTextFields: residentAddress ? [
-                            {
-                                title: "residentAddress",
-                                value: residentAddress
-                            }
-                        ] : []
+                        customTextFields: customFields
                     }
                 };
 
@@ -1791,24 +1824,7 @@ async function addToCart(productsToBuy) {
             }
         }
 
-        // If you're still using wix-ecom-frontend's cart refresh + navigate:
-        try {
-            console.log('Refreshing cart UI and navigating to cart page via wix-ecom-frontend...');
-            const { cart: ecomCart } = await import('wix-ecom-frontend');
-            await ecomCart.refreshCart();
-            console.log('refreshCart completed successfully.');
-            await ecomCart.navigateToCartPage();
-            console.log('navigateToCartPage completed. Browser should now be on the Cart page.');
-        } catch (ecomErr) {
-            console.warn('Could not refresh or navigate via wix-ecom-frontend (this is optional):', ecomErr);
-        }
-
     } catch (error) {
         console.error("Error adding products to cart:", error);
     }
 }
-
-
-
-
-
