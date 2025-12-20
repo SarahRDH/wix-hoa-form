@@ -1,0 +1,159 @@
+// backend/recCenterEmail.jsw
+
+import wixData from 'wix-data';
+import { triggeredEmails } from 'wix-crm-backend';
+
+// 👇 Rec center manager contact (from Contacts in Wix) – Sarah for testing
+// Contact URL example:
+// https://manage.wix.com/dashboard/0777d45d-343e-41d3-84fb-1eb04ff24e57/contacts/view/15fc640b-ef66-4f30-8679-0bc017db5275
+const REC_MANAGER_CONTACT_ID = "e7318ccd-c974-44ad-83c6-42e578cddf0b";
+
+// 👇 Triggered email ID you created in Wix (the one with ${variables} in the template)
+const REC_TRIGGER_EMAIL_ID = "V5ISSYC";
+
+// Small helper: normalize to string
+function safe(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+    return String(value);
+}
+
+/**
+ * Send a rec center email for the newest form submission
+ * matching the given collection + residentAddress.
+ *
+ * @param {Object} params
+ * @param {string} params.collectionId - Collection ID (e.g. "formSubsRecMember")
+ * @param {string} params.residentAddress - Address stored in form_property_address
+ * @param {string} [params.orderId] - Wix Stores order ID
+ * @param {string[]|string} [params.skus] - Array of SKUs or comma-separated string
+ */
+export async function emailRecCenterForm({ collectionId, residentAddress, orderId, skus }) {
+    try {
+        console.log(`Sending rec center email for ${collectionId}, address: ${residentAddress}`);
+
+        // Friendly names for the email
+        const collectionLabelMap = {
+            formSubsHoaDuesTier1and2: "HOA Dues – Tier 1 & 2 Form",
+            FormSubsHoaDuesTier3:     "HOA Dues – Tier 3 Form",
+            formSubsRecMember:        "Rec Center Membership Form",
+            formSubsRecNewKeyFob:     "Rec Center New Key Fob Form",
+            formSubsRecReservePavilion:"Pavilion Reservation Form"
+        };
+
+        const collectionLabel = collectionLabelMap[collectionId] || collectionId;
+
+        // Get the newest form record for this address
+        const result = await wixData.query(collectionId)
+            .eq("form_property_address", residentAddress)
+            .descending("_createdDate")
+            .limit(1)
+            .find();
+
+        if (!result.items.length) {
+            console.log(`No form records found in ${collectionId} for address: ${residentAddress}`);
+            return;
+        }
+
+        const form = result.items[0];
+        console.log("Newest form record for email:", JSON.stringify(form, null, 2));
+
+        // ---------- Extract fields and normalize them to strings ----------
+
+        const formName        = safe(form.form_name);
+        const formAddress     = safe(form.form_property_address); // should match residentAddress
+        const firstName       = safe(form.first_name);
+        const lastName        = safe(form.last_name);
+        const formPhone       = safe(form.form_phone_number);
+        const formEmail       = safe(form.form_email);
+        const formAdults      = safe(form.form_adults);
+        const formDependents  = safe(form.form_dependents);
+        const formHasKeyFob   = safe(form.form_has_key_fob);
+        const formSkuFromForm = safe(form.form_product_sku_01);
+        const documentsSigned = safe(form.form_documents_signed);
+
+        // Key fob numbers: combine into one comma-separated string
+        const fobNumbersArray = [
+            form.form_key_fob_01,
+            form.form_key_fob_02,
+            form.form_key_fob_03,
+            form.form_key_fob_04,
+            form.form_key_fob_05,
+            form.form_key_fob_06,
+            form.form_key_fob_07,
+            form.form_key_fob_08,
+            form.form_key_fob_09,
+            form.form_key_fob_10
+        ].filter(f => f && String(f).trim() !== "");
+
+        const fobNumbers = fobNumbersArray.length ? fobNumbersArray.join(", ") : "";
+
+        // Pavilion / rec reservation–specific fields
+        const recReserveDateRaw     = form.form_rec_reserve_date || null;
+        const recReserveTimeRaw     = form.form_rec_reserve_time || null;
+        const recReserveNumHours    = safe(form.form_rec_reserve_num_hours);
+        const recReserveGuestNumber = safe(form.form_rec_reserve_guest_number);
+        const poolUse               = safe(form.form_pool_use);
+
+        // Format date/time nicely for email
+        let recReserveDate = "";
+        if (recReserveDateRaw instanceof Date) {
+            recReserveDate = recReserveDateRaw.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric"
+            });
+        } else if (recReserveDateRaw) {
+            recReserveDate = safe(recReserveDateRaw);
+        }
+
+        let recReserveTime = "";
+        if (recReserveTimeRaw instanceof Date) {
+            recReserveTime = recReserveTimeRaw.toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit"
+            });
+        } else if (recReserveTimeRaw) {
+            recReserveTime = safe(recReserveTimeRaw);
+        }
+
+        // SKUs from order (coming from events.js)
+        const skuString = Array.isArray(skus) ? skus.join(", ") : safe(skus);
+
+        // ---------- Send triggered email with named variables ----------
+        await triggeredEmails.emailContact(REC_TRIGGER_EMAIL_ID, REC_MANAGER_CONTACT_ID, {
+            variables: {
+                // Core info for the template
+                address: residentAddress,
+                collectionId,
+                collectionLabel,
+                orderId: safe(orderId),
+                skus: skuString,
+
+                // Generic form fields
+                formName,
+                formAddress,
+                firstName,
+                lastName,
+                formPhone,
+                formEmail,
+                formAdults,
+                formDependents,
+                formHasKeyFob,
+                fobNumbers,
+                formSkuFromForm,
+                documentsSigned,
+                recReserveDate,
+                recReserveTime,
+                recReserveNumHours,
+                recReserveGuestNumber,
+                poolUse
+            }
+        });
+
+        console.log("Rec center email sent successfully.");
+    } catch (err) {
+        console.error("Error sending rec center email:", err);
+    }
+}

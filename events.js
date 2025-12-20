@@ -1,98 +1,14 @@
 import wixData from 'wix-data';
-import { triggeredEmails } from 'wix-crm-backend';
+import { emailRecCenterForm } from 'backend/recCenterEmail.jsw';
 
-const RESIDENTS_COLLECTION = "Import1"; // <-- your Residents collection ID
-
-// 👇 Rec center manager contact (from Contacts in Wix) this is Sarah's for testing
-// 👇 Rec center manager contact (from Contacts in Wix) 15fc640b-ef66-4f30-8679-0bc017db5275
-const REC_MANAGER_CONTACT_ID = "e7318ccd-c974-44ad-83c6-42e578cddf0b"; // e.g. "1a2b3c4d-..."
-
-// 👇 Single triggered email ID you created in Wix
-const REC_TRIGGER_EMAIL_ID = "V5ISSYC";
-
-// 👇 Which collections correspond to rec-center forms (for emailing)
-const REC_FORM_COLLECTION_LABELS = {
-    formSubsRecMember: "Rec Center Membership Form",
-    formSubsRecNewKeyFob: "Key Fob Request Form",
-    formSubsRecReservePavilion: "Pavilion Reservation Form",
-    FormSubsHoaDuesTier3: "HOA Dues Tier 3 Form"
-};
-
-// ---------- Helpers to build an HTML table & send email ----------
-
-// Escape text for safe HTML
-function htmlEscape(str) {
-    if (str === null || str === undefined) return "";
-    return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-}
-
-// Build a simple HTML table from a Wix data item (generic)
-function buildHtmlTableFromItem(item) {
-    // Exclude system/meta fields
-    const excludeKeys = new Set([
-        "_id", "_owner", "_createdDate", "_updatedDate", "_revision",
-        "payment_successful_date"
-    ]);
-
-    const keys = Object.keys(item).filter(k => !excludeKeys.has(k));
-
-    if (!keys.length) {
-        return "<p>No fields found for this form submission.</p>";
-    }
-
-    let html = '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse; font-family:Arial, sans-serif; font-size:14px;">';
-    html += "<thead><tr>";
-
-    // Header row
-    keys.forEach(k => {
-        html += `<th style="background:#f0f0f0;">${htmlEscape(k)}</th>`;
-    });
-    html += "</tr></thead><tbody><tr>";
-
-    // Data row
-    keys.forEach(k => {
-        html += `<td>${htmlEscape(item[k])}</td>`;
-    });
-    html += "</tr></tbody></table>";
-
-    return html;
-}
-
-// Send one email to rec manager with table for a given form record
-async function emailRecCenterForm({ collectionId, collectionLabel, address, orderId, skus, item }) {
-    try {
-        const tableHtml = buildHtmlTableFromItem(item);
-        const skuString = (skus && skus.length) ? skus.join(", ") : "";
-
-        console.log(`Sending rec center email for ${collectionId}, address: ${address}`);
-
-        await triggeredEmails.emailContact(REC_TRIGGER_EMAIL_ID, REC_MANAGER_CONTACT_ID, {
-            variables: {
-                tableHtml,
-                address,
-                collectionId,
-                collectionLabel,
-                orderId,
-                skus: skuString
-            }
-        });
-
-        console.log("Rec center email sent successfully.");
-    } catch (err) {
-        console.error("Error sending rec center email:", err);
-    }
-}
+const RESIDENTS_COLLECTION = "Import1"; 
 
 // Helper: update payment_successful_date on the NEWEST matching form submission
-// and for rec-center forms, send an email with an HTML table
-async function updateCollectionPaymentDate(collectionId, residentAddress, paymentDate, orderContext = {}) {
+async function updateCollectionPaymentDate(collectionId, residentAddress, paymentDate) {
     try {
         console.log(`Updating payment_successful_date in ${collectionId} for address:`, residentAddress);
 
+        // Find newest record for this address (by _createdDate)
         const result = await wixData.query(collectionId)
             .eq("form_property_address", residentAddress)
             .descending("_createdDate")
@@ -112,25 +28,11 @@ async function updateCollectionPaymentDate(collectionId, residentAddress, paymen
         const updated = await wixData.update(collectionId, item);
         console.log(`Updated newest record in ${collectionId} for address ${residentAddress}:`, JSON.stringify(updated, null, 2));
 
-        // If this collection is one of the rec-center form collections, send the email
-        const collectionLabel = REC_FORM_COLLECTION_LABELS[collectionId];
-        if (collectionLabel) {
-            await emailRecCenterForm({
-                collectionId,
-                collectionLabel,
-                address: residentAddress,
-                orderId: orderContext.orderId,
-                skus: orderContext.orderSkus,
-                item: updated
-            });
-        }
-
     } catch (err) {
         console.error(`Error updating newest record in ${collectionId} for address ${residentAddress}:`, err);
     }
 }
 
-// ----------------- Main order paid handler -----------------
 
 /**
  * Runs when a Wix Stores order is marked as PAID.
@@ -205,8 +107,8 @@ export async function wixStores_onOrderPaid(event) {
         let updatePavilionForms = false;
 
         let residentAddress = null;
-        const orderSkus = [];
 
+        let orderSkus = [];
         // 🔍 Inspect each line item
         lineItems.forEach((item, index) => {
             console.log(`-- Line item ${index + 1} --`);
@@ -223,10 +125,9 @@ export async function wixStores_onOrderPaid(event) {
                 (item.sku ||
                 (item.physicalProperties && item.physicalProperties.sku) ||
                 "").trim();
+            orderSkus.push(sku);
 
             if (sku) {
-                orderSkus.push(sku);
-
                 // ---- Flags for Residents collection ----
                 if (HOA_DUES_SKUS.includes(sku)) {
                     hoaDuesPurchased = true;
@@ -278,7 +179,6 @@ export async function wixStores_onOrderPaid(event) {
         console.log("updateRecMemberForms:", updateRecMemberForms);
         console.log("updateKeyFobForms:", updateKeyFobForms);
         console.log("updatePavilionForms:", updatePavilionForms);
-        console.log("orderSkus:", orderSkus);
 
         if (!residentAddress) {
             console.warn(
@@ -298,19 +198,14 @@ export async function wixStores_onOrderPaid(event) {
             return;
         }
 
-        const orderContext = {
-            orderId: event._id,
-            orderSkus
-        };
-
-        // Use either gateway timestamp if available, or current server time
-        const paymentDate = new Date();
+        // Use either the gateway's timestamp if available, or current server time
+        const paymentDate = new Date(); // you can also use new Date(event._createdDate) if present
         console.log("Using paymentDate:", paymentDate.toISOString());
 
         // ---------------- Update Residents collection (hoa_dues_paid / rec_dues_paid) ----------------
         if (hoaDuesPurchased || recDuesPurchased) {
             const queryResult = await wixData.query(RESIDENTS_COLLECTION)
-                .eq("full_address", residentAddress)
+                .eq("full_address", residentAddress) 
                 .find();
 
             console.log("Residents query results:", JSON.stringify(queryResult.items, null, 2));
@@ -338,44 +233,82 @@ export async function wixStores_onOrderPaid(event) {
             }
         }
 
-        // ---------------- Update form collections with payment_successful_date (+ email for rec forms) ----------------
+        // ---------------- Update form collections with payment_successful_date ----------------
         const updates = [];
+        const emailUpdates = [];
 
         if (updateTier1and2Forms) {
             updates.push(
-                updateCollectionPaymentDate("formSubsHoaDuesTier1and2", residentAddress, paymentDate, orderContext)
+                updateCollectionPaymentDate("formSubsHoaDuesTier1and2", residentAddress, paymentDate)
             );
         }
 
         if (updateTier3Forms) {
             updates.push(
-                updateCollectionPaymentDate("FormSubsHoaDuesTier3", residentAddress, paymentDate, orderContext)
+                updateCollectionPaymentDate("FormSubsHoaDuesTier3", residentAddress, paymentDate)
             );
+            emailUpdates.push({
+                collectionId: "FormSubsHoaDuesTier3",
+                residentAddress,
+                orderId: event._id,
+                skus: orderSkus   
+            });
         }
 
         if (updateRecMemberForms) {
             updates.push(
-                updateCollectionPaymentDate("formSubsRecMember", residentAddress, paymentDate, orderContext)
+                updateCollectionPaymentDate("formSubsRecMember", residentAddress, paymentDate)
             );
+            emailUpdates.push({
+                collectionId: "formSubsRecMember",
+                residentAddress,
+                orderId: event._id,
+                skus: orderSkus   
+            });
         }
 
         if (updateKeyFobForms) {
             updates.push(
-                updateCollectionPaymentDate("formSubsRecNewKeyFob", residentAddress, paymentDate, orderContext)
+                updateCollectionPaymentDate("formSubsRecNewKeyFob", residentAddress, paymentDate)
             );
+            emailUpdates.push({
+                collectionId: "formSubsRecNewKeyFob",
+                residentAddress,
+                orderId: event._id,
+                skus: orderSkus   
+            });
         }
 
         if (updatePavilionForms) {
             updates.push(
-                updateCollectionPaymentDate("formSubsRecReservePavilion", residentAddress, paymentDate, orderContext)
+                updateCollectionPaymentDate("formSubsRecReservePavilion", residentAddress, paymentDate)
             );
+            emailUpdates.push({
+                collectionId: "formSubsRecReservePavilion",
+                residentAddress,
+                orderId: event._id,
+                skus: orderSkus   
+            });
         }
 
+        // First, update all payment dates
         if (updates.length > 0) {
             console.log("Running form collection updates...");
             await Promise.all(updates);
         } else {
             console.log("No form collection updates needed for this order.");
+        }
+
+        // Then, send all emails (after payment dates are updated)
+        if (emailUpdates.length > 0) {
+            console.log("Sending rec center emails...");
+            for (const emailParams of emailUpdates) {
+                try {
+                    await emailRecCenterForm(emailParams);
+                } catch (emailErr) {
+                    console.error(`Failed to send email for ${emailParams.collectionId}:`, emailErr);
+                }
+            }
         }
 
         console.log("=== FINISHED wixStores_onOrderPaid SUCCESSFULLY ===");
