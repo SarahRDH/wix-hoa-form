@@ -27,12 +27,6 @@ const availableHoaTier1Products = [
         productSku: "hoa-dues-tier-one"
     },
     {
-        label: "Test Product",
-        value: "test-product-physical",
-        productId: "product_3c5b6bf0-7042-3909-35ed-9f1eb0112de9",
-        productSku: "test-product-physical"
-    },
-    {
         label: "Pay Both HOA and Rec Dues",
         value: "hoa-and-rec-dues-bundle",
         productId: "product_8cc31e70-2e21-4c03-16a5-7b395faa740c",
@@ -46,12 +40,7 @@ const availableHoaTier2Products = [
         productId: "product_bb55dc81-b9e3-b472-a6ce-02deaea8d8f2",
         productSku: "hoa-dues-tier-two"
     },
-    {
-        label: "Test Product",
-        value: "test-product-physical",
-        productId: "product_3c5b6bf0-7042-3909-35ed-9f1eb0112de9",
-        productSku: "test-product-physical"
-    },
+
     {
         label: "Pay Both HOA and Rec Dues",
         value: "hoa-and-rec-dues-bundle",
@@ -61,17 +50,12 @@ const availableHoaTier2Products = [
 ];
 const availableHoaTier3Products = [
     { 
-        label: "Pay HOA Dues", 
+        label: "Pay HOA Dues - Includes Rec Membership", 
         value: "hoa-dues-tier-three",
         productId: "product_a536bb9b-e2a7-d22b-4062-3ec8ad89ee3d",
         productSku: "hoa-dues-tier-three"
-    },
-    {
-        label: "Test Product",
-        value: "test-product-physical",
-        productId: "product_3c5b6bf0-7042-3909-35ed-9f1eb0112de9",
-        productSku: "test-product-physical"
     }
+   
 ];
 const availableRecMemberProducts = [
     { 
@@ -85,13 +69,8 @@ const availableRecMemberProducts = [
         value: "key-fob",
         productId: "product_4c48e732-1048-d572-7c94-59539ea14cee",
         productSku: "key-fob" 
-    },
-    {
-        label: "Test Product",
-        value: "test-product-physical",
-        productId: "product_3c5b6bf0-7042-3909-35ed-9f1eb0112de9",
-        productSku: "test-product-physical"
     }
+   
 ];
 // The additional pavilion products are added in dynamically based on user selections in the pavilion form
 const pavilionReservationProduct = [
@@ -167,13 +146,8 @@ const availableHoaMemberTier1and2Products = [
         value: "rec-center-resident",
         productId: "product_36055bac-4855-b8b3-ff0d-3f5c06d18363",
         productSku: "rec-center-resident"
-    },
-    {
-        label: "Test Product",
-        value: "test-product-physical",
-        productId: "product_3c5b6bf0-7042-3909-35ed-9f1eb0112de9",
-        productSku: "test-product-physical"
     }
+
 ];
 //need to set up logic for non-resident products
 const availableNonResidentProducts = [
@@ -274,7 +248,7 @@ const formElementsHoa3 = {
     adultsRec: 'adultsBox',
     dependentsRec: 'dependentsBox',
     nameAgeBox: 'namesAgesBox',
-    fobs: ['input11', 'input12', 'input13', 'input14', 'input15', 'input16', 'input17', 'input18', 'input19', 'input20'],
+    fobs: ['input11', 'input12', 'input13', 'input14'],
     hasFob: 'radioGroup3',
     keyFobBox: 'keyFobBox'
 };
@@ -315,7 +289,7 @@ const formElementsRecMembership = {
     adultsRec: 'adultsBox1',
     dependentsRec: 'dependentsBox1', 
     nameAgeBox: 'namesAgesBox1',   
-    fobs: ['input30', 'input29', 'input28', 'input27', 'input26', 'input25', 'input24', 'input23', 'input22', 'input21'],
+    fobs: ['input30', 'input29', 'input28', 'input27'],
     hasFob: 'radioGroup4',
     keyFobBox: 'keyFobBox1'
 };
@@ -960,7 +934,6 @@ $w.onReady(function () {
                     switch (sel) {
                         case 'rec-center-resident':
                         case 'rec-center-non-resident':
-                        case 'test-product-physical':
                             matchedState = formBoxRecMember;
                             formName = 'rec_membership';
                             formCollectionName = 'formSubsRecMember';
@@ -1445,7 +1418,7 @@ async function validateHoaForm({ firstName, lastName, phone, email, signature } 
         }
         if (formSignature) {
             if (!signature) {
-                const errorMessage = 'Please provide your signature.';
+                const errorMessage = 'Please provide your signature. If using a mouse, left click in the signature box and hold while moving the mouse to draw your signature.';
                 if (formErrorMessage) formErrorMessage.text = errorMessage;
                 return { valid: false };
             }
@@ -1646,12 +1619,6 @@ async function submitHoaForm() {
             "form_key_fob_02": fobNumbers[1] || '',
             "form_key_fob_03": fobNumbers[2] || '',
             "form_key_fob_04": fobNumbers[3] || '',
-            "form_key_fob_05": fobNumbers[4] || '',
-            "form_key_fob_06": fobNumbers[5] || '',
-            "form_key_fob_07": fobNumbers[6] || '',
-            "form_key_fob_08": fobNumbers[7] || '',
-            "form_key_fob_09": fobNumbers[8] || '',
-            "form_key_fob_10": fobNumbers[9] || '',
             "form_has_key_fob": hasKeyFob,
             "form_documents_signed": formDocumentLinks.join(', '), // Join all document links into a single string
             "form_rec_reserve_date": formReservationDate ? formReservationDate.value : null,
@@ -1754,7 +1721,6 @@ async function addToCart(productsToBuy, sanitizedFormPayload = null) {
 
         // 2) Build the list of products to add, with customTextFields for residentAddress
         const productsToAdd = [];
-console.log(itemToInsert.first_name);
         for (const product of productsToBuy) {
             if (product.productId && product.productId !== '') {
                 // Build the customTextFields array: include residentAddress and a sanitized formDetails JSON

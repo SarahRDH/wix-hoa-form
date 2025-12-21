@@ -99,13 +99,7 @@ export async function emailRecCenterForm({ collectionId, residentAddress, orderI
             form.form_key_fob_01,
             form.form_key_fob_02,
             form.form_key_fob_03,
-            form.form_key_fob_04,
-            form.form_key_fob_05,
-            form.form_key_fob_06,
-            form.form_key_fob_07,
-            form.form_key_fob_08,
-            form.form_key_fob_09,
-            form.form_key_fob_10
+            form.form_key_fob_04
         ].filter(f => f && String(f).trim() !== "");
 
         const fobNumbers = fobNumbersArray.length ? fobNumbersArray.join(", ") : "";

@@ -76,8 +76,7 @@ export async function wixStores_onOrderPaid(event) {
             "hoa-dues-tier-one",
             "hoa-and-rec-dues-bundle",
             "hoa-dues-tier-two",
-            "hoa-dues-tier-three",
-            "test-product-physical" // for testing purposes - needs to be assigned to the same form skus as the form in wix-collection-query-hoa.js
+            "hoa-dues-tier-three"
         ];
 
         // 🔹 SKUs that represent Rec dues payments (for Residents.rec_dues_paid)
@@ -95,14 +94,12 @@ export async function wixStores_onOrderPaid(event) {
 
         const HOA_T3_FORM_SKUS = [
             "hoa-dues-tier-three",
-            "hoa-and-rec-dues-bundle",
-            "test-product-physical" // for testing purposes - needs to be assigned to the same form skus as the form in wix-collection-query-hoa.js
+            "hoa-and-rec-dues-bundle"
         ];
 
         const REC_MEMBER_FORM_SKUS = [
             "rec-center-non-resident",
-            "rec-center-resident",
-            "test-product-physical" // for testing purposes - needs to be assigned to the same form skus as the form in wix-collection-query-hoa.js
+            "rec-center-resident"
         ];
 
         const REC_KEY_FOB_FORM_SKUS = [
@@ -191,10 +188,14 @@ export async function wixStores_onOrderPaid(event) {
             if (addressField) {
                 residentAddress = addressField.value;
                 console.log("FOUND residentAddress in order:", residentAddress);
-                // don't break; keep scanning SKUs in other items
-                if (formFields) {
+            }
+
+            if (formFields) {
+                try {
                     formData = JSON.parse(formFields.value);
                     console.log("FOUND formFields in order:", formData);
+                } catch (parseErr) {
+                    console.warn('Could not parse formDetails JSON from order line item:', parseErr);
                 }
             }
 
