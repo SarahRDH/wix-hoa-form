@@ -20,28 +20,23 @@ function safe(value) {
 }
 
 /**
- * Send a rec center email for the newest form submission
- * matching the given collection + residentAddress.
+ * Send a rec center email for the newest form submission.
+ *
+ * Primary path:
+ *  - If formInfo contains form_record_id (and optional form_collection),
+ *    this function will fetch that exact document via wixData.get().
+ *
+ * Fallback:
+ *  - If no id is available or the get() fails, it will fall back to
+ *    "newest record matching form_property_address".
  *
  * @param {Object} params
  * @param {string} params.collectionId - Collection ID (e.g. "formSubsRecMember")
  * @param {string} params.residentAddress - Address stored in form_property_address
  * @param {string} [params.orderId] - Wix Stores order ID
  * @param {string[]|string} [params.skus] - Array of SKUs or comma-separated string
- * @param {string} params.form_name
- * @param {string} params.first_name
- * @param {string} params.form_phone_number
- * @param {string} params.form_email
- * @param {string} params.form_adults
- * @param {string} params.form_dependents
- * @param {string} params.form_has_key_fob
- * @param {string} params.form_product_sku_01
- * @param {string} params.form_documents_signed
- * @param {string} params.form_rec_reserve_date
- * @param {string} params.form_rec_reserve_time
- * @param {string} params.form_rec_reserve_num_hours
- * @param {string} params.form_rec_reserve_guest_number
- * @param {string} params.form_pool_use
+ * @param {Object} [params.formInfo] - Small payload from order customTextFields; may include
+ *                                     form_record_id and form_collection.
  */
 export async function emailRecCenterForm({ collectionId, residentAddress, orderId, skus, formInfo = null }) {
     try {
@@ -58,13 +53,35 @@ export async function emailRecCenterForm({ collectionId, residentAddress, orderI
 
         const collectionLabel = collectionLabelMap[collectionId] || collectionId;
 
-        // If caller provided formInfo (from customTextFields), use it directly; otherwise query the collection
+        // ---------------------------------------------------------
+        // 1) Try to load form by explicit id from formInfo (preferred)
+        // ---------------------------------------------------------
         let form = null;
+
         if (formInfo && typeof formInfo === 'object' && Object.keys(formInfo).length > 0) {
-            form = formInfo;
-            console.log('Using provided formInfo from order customTextFields:', JSON.stringify(form, null, 2));
-        } else {
-            // Get the newest form record for this address
+            const formIdFromInfo = formInfo.form_record_id || formInfo.formId || null;
+            const collectionFromInfo = formInfo.form_collection || collectionId;
+
+            if (formIdFromInfo) {
+                try {
+                    console.log(`Attempting to fetch form by id ${formIdFromInfo} from collection ${collectionFromInfo} (emailRecCenterForm)`);
+                    const doc = await wixData.get(collectionFromInfo, formIdFromInfo);
+                    if (doc) {
+                        form = doc;
+                        console.log("Loaded form document by id for email:", JSON.stringify(form, null, 2));
+                    }
+                } catch (errById) {
+                    console.warn(`Could not load form by id ${formIdFromInfo} in collection ${collectionFromInfo}, will fall back to address-based lookup:`, errById);
+                }
+            } else {
+                console.log("formInfo provided but no form_record_id/formId present; will fall back to address-based lookup.");
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 2) Fallback: newest record by form_property_address
+        // ---------------------------------------------------------
+        if (!form) {
             const result = await wixData.query(collectionId)
                 .eq("form_property_address", residentAddress)
                 .descending("_createdDate")
@@ -77,7 +94,7 @@ export async function emailRecCenterForm({ collectionId, residentAddress, orderI
             }
 
             form = result.items[0];
-            console.log("Newest form record for email:", JSON.stringify(form, null, 2));
+            console.log("Newest form record for email (fallback):", JSON.stringify(form, null, 2));
         }
 
         // ---------- Extract fields and normalize them to strings ----------

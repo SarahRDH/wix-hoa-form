@@ -83,6 +83,7 @@ export async function wixStores_onOrderPaid(event) {
         const REC_DUES_SKUS = [
             "rec-center-non-resident",
             "rec-center-resident",
+            "hoa-dues-tier-three",
             "hoa-and-rec-dues-bundle", // bundle covers Rec dues too
         ];
 
@@ -123,7 +124,7 @@ export async function wixStores_onOrderPaid(event) {
         let updatePavilionForms = false;
 
         let residentAddress = null;
-        let formData = null;
+        let formData = null; // will hold minimal metadata (form_record_id, form_collection)
 
         let orderSkus = [];
         // 🔍 Inspect each line item
@@ -136,7 +137,7 @@ export async function wixStores_onOrderPaid(event) {
             console.log("item.options:", JSON.stringify(item.options, null, 2));
         });
 
-        // 🔍 Scan line items: figure out which SKUs were bought + find residentAddress
+        // 🔍 Scan line items: figure out which SKUs were bought + find residentAddress + form_record_id
         for (const item of lineItems) {
             const sku =
                 (item.sku ||
@@ -171,7 +172,7 @@ export async function wixStores_onOrderPaid(event) {
                 }
             }
 
-            // ---- residentAddress from customTextFields ----
+            // ---- residentAddress + minimal form metadata from customTextFields ----
             const topLevelFields = item.customTextFields || [];
             const optionFields =
                 (item.options && item.options.customTextFields) || [];
@@ -181,7 +182,17 @@ export async function wixStores_onOrderPaid(event) {
             const addressField = allFields.find(
                 (f) => f && f.title === "residentAddress" && f.value
             );
-            const formFields = allFields.find(
+
+            // New small fields we care about
+            const recordIdField = allFields.find(
+                (f) => f && f.title === "form_record_id" && f.value
+            );
+            const collectionField = allFields.find(
+                (f) => f && f.title === "form_collection" && f.value
+            );
+
+            // Optional: backward-compat with older orders that used a big JSON blob
+            const formDetailsField = allFields.find(
                 (f) => f && f.title === "formDetails" && f.value
             );
 
@@ -190,15 +201,32 @@ export async function wixStores_onOrderPaid(event) {
                 console.log("FOUND residentAddress in order:", residentAddress);
             }
 
-            if (formFields) {
-                try {
-                    formData = JSON.parse(formFields.value);
-                    console.log("FOUND formFields in order:", formData);
-                } catch (parseErr) {
-                    console.warn('Could not parse formDetails JSON from order line item:', parseErr);
-                }
+            if (!formData) formData = {};
+
+            if (recordIdField) {
+                formData.form_record_id = recordIdField.value;
+                console.log("FOUND form_record_id in order:", formData.form_record_id);
+            }
+            if (collectionField) {
+                formData.form_collection = collectionField.value;
+                console.log("FOUND form_collection in order:", formData.form_collection);
             }
 
+            // Backward-compat: if older orders stored a JSON blob under formDetails,
+            // we can still merge it into formData, but this is no longer required
+            // for new orders now that we use form_record_id.
+            if (formDetailsField && formDetailsField.value) {
+                try {
+                    const parsed = JSON.parse(formDetailsField.value);
+                    console.log("FOUND legacy JSON formDetails in order (parsed):", parsed);
+                    formData = {
+                        ...(formData || {}),
+                        ...parsed
+                    };
+                } catch (parseErr) {
+                    console.warn('Could not parse legacy formDetails JSON from order line item:', parseErr);
+                }
+            }
         }
 
         console.log("hoaDuesPurchased:", hoaDuesPurchased);
@@ -266,6 +294,10 @@ export async function wixStores_onOrderPaid(event) {
         const updates = [];
         const emailUpdates = [];
 
+        // Helper to safely extract recordId from formData (may be null)
+        const getRecordId = () =>
+            formData && formData.form_record_id ? formData.form_record_id : null;
+
         if (updateTier1and2Forms) {
             updates.push(
                 updateCollectionPaymentDate("formSubsHoaDuesTier1and2", residentAddress, paymentDate, formData)
@@ -281,7 +313,7 @@ export async function wixStores_onOrderPaid(event) {
                 residentAddress,
                 orderId: event._id,
                 skus: orderSkus,
-                formInfo: formData  
+                recordId: getRecordId()
             });
         }
 
@@ -294,7 +326,7 @@ export async function wixStores_onOrderPaid(event) {
                 residentAddress,
                 orderId: event._id,
                 skus: orderSkus,
-                formInfo: formData  
+                recordId: getRecordId()
             });
         }
 
@@ -307,7 +339,7 @@ export async function wixStores_onOrderPaid(event) {
                 residentAddress,
                 orderId: event._id,
                 skus: orderSkus,
-                formInfo: formData   
+                recordId: getRecordId()
             });
         }
 
@@ -320,7 +352,7 @@ export async function wixStores_onOrderPaid(event) {
                 residentAddress,
                 orderId: event._id,
                 skus: orderSkus,
-                formInfo: formData  
+                recordId: getRecordId()
             });
         }
 

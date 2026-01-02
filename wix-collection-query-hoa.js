@@ -23,13 +23,13 @@ const availableHoaTier1Products = [
     {
         label: "Pay HOA Dues",
         value: "hoa-dues-tier-one",
-        productId: "product_b30c58b5-ee86-be37-0fd3-6286d9a04e22",
+        productId: "b30c58b5-ee86-be37-0fd3-6286d9a04e22",
         productSku: "hoa-dues-tier-one"
     },
     {
         label: "Pay Both HOA and Rec Dues",
         value: "hoa-and-rec-dues-bundle",
-        productId: "product_8cc31e70-2e21-4c03-16a5-7b395faa740c",
+        productId: "8cc31e70-2e21-4c03-16a5-7b395faa740c",
         productSku: "hoa-and-rec-dues-bundle"
     }
 ];
@@ -37,14 +37,14 @@ const availableHoaTier2Products = [
     {
         label: "Pay HOA Dues",
         value: "hoa-dues-tier-two",
-        productId: "product_bb55dc81-b9e3-b472-a6ce-02deaea8d8f2",
+        productId: "bb55dc81-b9e3-b472-a6ce-02deaea8d8f2",
         productSku: "hoa-dues-tier-two"
     },
 
     {
         label: "Pay Both HOA and Rec Dues",
         value: "hoa-and-rec-dues-bundle",
-        productId: "product_8cc31e70-2e21-4c03-16a5-7b395faa740c",
+        productId: "8cc31e70-2e21-4c03-16a5-7b395faa740c",
         productSku: "hoa-and-rec-dues-bundle"
     }
 ];
@@ -52,7 +52,7 @@ const availableHoaTier3Products = [
     { 
         label: "Pay HOA Dues - Includes Rec Membership", 
         value: "hoa-dues-tier-three",
-        productId: "product_a536bb9b-e2a7-d22b-4062-3ec8ad89ee3d",
+        productId: "a536bb9b-e2a7-d22b-4062-3ec8ad89ee3d",
         productSku: "hoa-dues-tier-three"
     }
    
@@ -61,13 +61,13 @@ const availableRecMemberProducts = [
     { 
         label: "Pavilion Reservation", 
         value: "pavilion-2-hrs",
-        productId: "product_e251c1ab-e43e-aaba-9491-9f8615e5b59e",
+        productId: "e251c1ab-e43e-aaba-9491-9f8615e5b59e",
         productSku: "pavilion-2-hrs" 
     },
     { 
         label: "Order a New Key Fob", 
         value: "key-fob",
-        productId: "product_4c48e732-1048-d572-7c94-59539ea14cee",
+        productId: "4c48e732-1048-d572-7c94-59539ea14cee",
         productSku: "key-fob" 
     }
    
@@ -77,66 +77,43 @@ const pavilionReservationProduct = [
         { 
         label: "Pavilion Reservation", 
         value: "pavilion-2-hrs",
-        productId: "product_e251c1ab-e43e-aaba-9491-9f8615e5b59e",
+        productId: "e251c1ab-e43e-aaba-9491-9f8615e5b59e",
         productSku: "pavilion-2-hrs" 
     }
 ];
-//if the productId contains 'product_' prefix, remove it
-pavilionReservationProduct.forEach(prod => {
-    if (prod.productId.startsWith('product_')) {
-        prod.productId = prod.productId.replace('product_', '');
-    }
-});
+
 const extraPavilionHourProduct = [
     {
         label: "Pavilion Reservation, Four Hours",
         value: "pavilion-4-hours",
-        productId: "product_c31a5c0d-c95f-c47d-a167-7f6fb24281b9",
+        productId: "c31a5c0d-c95f-c47d-a167-7f6fb24281b9",
         productSku: "pavilion-4-hours"
     }
 ];
 
-//if the productId contains 'product_' prefix, remove it
-extraPavilionHourProduct.forEach(prod => {
-    if (prod.productId.startsWith('product_')) {
-        prod.productId = prod.productId.replace('product_', '');
-    }   
-});
 const jumboPavilionProduct = [
     {
         label: "Pavilion Reservation, Two Hours, Over 50 Guests",
         value: "pavilion-jumbo",
-        productId: "product_25a9c7f1-c631-3136-dcb1-9f4df2d758a7",
+        productId: "25a9c7f1-c631-3136-dcb1-9f4df2d758a7",
         productSku: "pavilion-jumbo"
     }
 ];
-//if the productId contains 'product_' prefix, remove it
-jumboPavilionProduct.forEach(prod => {
-    if (prod.productId.startsWith('product_')) {
-        prod.productId = prod.productId.replace('product_', '');
-    }
-});
 
 const jumboPavilionFourHourProduct = [
     {
         label: "Pavilion Reservation, Four Hours, Over 50 Guests",
         value: "pavilion-jumbo-4-hours",
-        productId: "product_1f1abbf2-eb25-221f-9ad1-3e3affb1b9f5",
+        productId: "1f1abbf2-eb25-221f-9ad1-3e3affb1b9f5",
         productSku: "pavilion-jumbo-4-hours"
     }
 ];
-//if the productId contains 'product_' prefix, remove it
-jumboPavilionFourHourProduct.forEach(prod => {
-    if (prod.productId.startsWith('product_')) {
-        prod.productId = prod.productId.replace('product_', '');
-    }
-});
 
 const unit10Product = [
     {
         label: "Unit 10 Additional HOA Dues",
         value: "hoa-dues-unit-ten",
-        productId: "product_5c189125-6094-7239-992d-12f6c5c71511",
+        productId: "5c189125-6094-7239-992d-12f6c5c71511",
         productSku: "hoa-dues-unit-ten"
     }
 ];
@@ -144,7 +121,7 @@ const availableHoaMemberTier1and2Products = [
     { 
         label: "Pay Rec Center Dues", 
         value: "rec-center-resident",
-        productId: "product_36055bac-4855-b8b3-ff0d-3f5c06d18363",
+        productId: "36055bac-4855-b8b3-ff0d-3f5c06d18363",
         productSku: "rec-center-resident"
     }
 
@@ -154,7 +131,7 @@ const availableNonResidentProducts = [
     {
         label: "Pay Rec Center Dues",
         value: "rec-center-non-resident",
-        productId: "product_f7960293-7772-25ce-ca3e-1ce11d5ef324",
+        productId: "f7960293-7772-25ce-ca3e-1ce11d5ef324",
         productSku: "rec-center-non-resident"
     },
 ];
@@ -465,7 +442,7 @@ $w.onReady(function () {
             for (const sel of selections) {
                 console.log('Trying to match selected product:', sel);
 
-                // Try several matching strategies: sku, productSku, _id, product_id_from_app, or mapped name
+                // Try several matching strategies: sku, productSku, _id, or product_id_from_app
                 let match = items.find(it =>
                     (it.sku && it.sku === sel) ||
                     (it.productSku && it.productSku === sel) ||
@@ -475,16 +452,29 @@ $w.onReady(function () {
                 );
 
                 if (match) {
-                    // Normalize product id (remove 'product_' prefix if present)
-                    const normalizedProductId = (match.product_id_from_app || match._id || '').replace(/^product_/, '');
+                    // Only use product_id_from_app – never fall back to _id for productId
+                    const normalizedProductId = match.product_id_from_app
+                        ? match.product_id_from_app.replace(/^product_/, '')
+                        : '';
+
+                    if (!normalizedProductId) {
+                        console.warn(`No valid product_id_from_app for SKU: ${sel}`, match);
+                    } else {
+                        console.log(`Resolved productId for ${sel}:`, normalizedProductId);
+                    }
+
                     selectedProductsObject[sel] = {
                         productId: normalizedProductId,
                         sku: match.sku || sel,
                         price: match.price || 0,
                         rawItem: match
                     };
-                    console.log('Matched product for', sel, selectedProductsObject[sel]);
-                    productsToBuy.push(selectedProductsObject[sel]);
+
+                    if (normalizedProductId) {
+                        productsToBuy.push(selectedProductsObject[sel]);
+                    } else {
+                        console.warn(`Skipping SKU ${sel} because it has no valid productId.`);
+                    }
                     // Extract document links from the matched item's raw data fields that start with 'form_document_'
                     const docs = [];
                     const productHTML = [];
@@ -1085,13 +1075,6 @@ $w.onReady(function () {
                             // Refresh productsToBuy by re-running the product lookup
                             if (typeof getProductData === 'function') {
                                 await getProductData(selectedProducts);
-                            } else if (typeof getProductData === 'undefined') {
-                                // fallback: call the locally scoped function if available
-                                try {
-                                    await getProductData(selectedProducts);
-                                } catch (e) {
-                                    console.warn('getProductData not available to refresh products after totalHours change', e);
-                                }
                             }
 
                             // dedupe display html and refresh the documents & product display section
@@ -1143,12 +1126,6 @@ $w.onReady(function () {
                             // Refresh productsToBuy by re-running the product lookup
                             if (typeof getProductData === 'function') {
                                 await getProductData(selectedProducts);
-                            } else if (typeof getProductData === 'undefined') {
-                                try {
-                                    await getProductData(selectedProducts);
-                                } catch (e) {
-                                    console.warn('getProductData not available to refresh products after guestCount change', e);
-                                }
                             }
 
                             // dedupe display html and refresh the documents & product display section
@@ -1593,13 +1570,9 @@ async function submitHoaForm() {
         if (autoSelectedProducts && autoSelectedProducts.length > 0) {
             if (!Array.isArray(selectedProducts)) selectedProducts = [selectedProducts];
             autoSelectedProducts.forEach(sku => {
-                //if the productId contains 'product_' prefix, remove it
-                if (sku.includes('product_')) {
-                    sku = sku.replace('product_', '');
-                }
                 if (!selectedProducts.includes(sku)) selectedProducts.push(sku);
             });
-            console.log('edited product ids after merge:', selectedProducts, autoSelectedProducts);
+            console.log('Final selected SKUs after merge with autoSelectedProducts:', selectedProducts, autoSelectedProducts);
         }
 
         console.log('Selected products to submit:', selectedProducts);
@@ -1645,17 +1618,8 @@ async function submitHoaForm() {
         console.log('Products to add to cart:', productsToBuy);
         
         if (productsToBuy.length > 0) {
-            // Prepare a sanitized copy of the form data to include in customTextFields
-            const sanitized = {};
-            Object.keys(itemToInsert).forEach(key => {
-                // exclude signature and any system/internal fields
-                if (key === 'form_signature') return;
-                if (key.startsWith('_')) return;
-                sanitized[key] = itemToInsert[key];
-            });
-
-            // Pass sanitized form details to addToCart so they are attached to the order
-            await addToCart(productsToBuy, sanitized);
+            // We no longer send the full sanitized payload, just store form_record_id & form_collection on itemToInsert
+            await addToCart(productsToBuy);
         } else {
             console.warn('No valid products found via dynamic lookup, add to cart skipped...');
         }
@@ -1689,7 +1653,7 @@ async function submitHoaForm() {
 // ------------------------------------------ Add to cart functionality ------------------------------------------
 
 // Function to add selected products to cart
-async function addToCart(productsToBuy, sanitizedFormPayload = null) {
+async function addToCart(productsToBuy) {
     try {
         console.log('Adding products to cart:', productsToBuy);
         
@@ -1698,92 +1662,71 @@ async function addToCart(productsToBuy, sanitizedFormPayload = null) {
             return;
         }
 
-        // Use the address from the form (fallback to selectedAddress)
         const residentAddress = formPropertyAddress.value;
         console.log('Using residentAddress for customTextFields:', residentAddress);
 
-        // 1) Get the current cart and clear out any existing line items (prevents multiples added at checkout)
-        const existingCart = await wixStores.cart.getCurrentCart();
-        console.log('Existing cart BEFORE clearing:', existingCart);
-
-        if (existingCart.lineItems && existingCart.lineItems.length > 0) {
-            const idsToRemove = existingCart.lineItems.map(li => li.id);
-            console.log('Clearing previous line items from cart, lineItemIds:', idsToRemove);
-
-            // Remove all current line items so this flow controls the cart contents
-            await wixStores.cart.removeProducts(idsToRemove);
-
-            const clearedCart = await wixStores.cart.getCurrentCart();
-            console.log('Cart AFTER clearing:', clearedCart);
-        } else {
-            console.log('Cart was already empty before adding new products.');
-        }
-
-        // 2) Build the list of products to add, with customTextFields for residentAddress
         const productsToAdd = [];
+
         for (const product of productsToBuy) {
-            if (product.productId && product.productId !== '') {
-                // Build the customTextFields array: include residentAddress and a sanitized formDetails JSON
-                const customFields = [];
-                if (residentAddress) {
-                    customFields.push({ title: "residentAddress", value: residentAddress });
-                }
-
-                // Prefer the sanitized payload passed in (from submit flow). Fallback to global itemToInsert if needed.
-                const payloadSource = (sanitizedFormPayload && typeof sanitizedFormPayload === 'object') ? sanitizedFormPayload : (itemToInsert || {});
-
-                if (payloadSource && Object.keys(payloadSource).length > 0) {
-                    // Ensure we include the record id and collection if available on itemToInsert
-                    const formPayload = Object.assign({}, payloadSource);
-                    if (itemToInsert && itemToInsert.form_record_id) {
-                        formPayload.form_record_id = itemToInsert.form_record_id;
-                    }
-                    if (itemToInsert && itemToInsert.form_collection) {
-                        formPayload.form_collection = itemToInsert.form_collection;
-                    }
-
-                    try {
-                        customFields.push({ title: "formDetails", value: JSON.stringify(formPayload) });
-                    } catch (e) {
-                        console.warn('Could not stringify form payload for customTextFields:', e);
-                    }
-                }
-
-                const lineItemToAdd = {
-                    productId: product.productId,
-                    quantity: 1,
-                    options: {
-                        customTextFields: customFields
-                    }
-                };
-
-                productsToAdd.push(lineItemToAdd);
-
-                console.log(`Preparing to add product: ${product.sku} (ID: ${product.productId})`, lineItemToAdd);
-            } else {
-                console.warn(`Skipping product with missing ID:`, product);
+            if (!product.productId) {
+                console.warn('Skipping product with missing productId:', product);
+                continue;
             }
+
+            const customFields = [];
+
+            // Small, safe fields only
+            if (residentAddress) {
+                customFields.push({
+                    title: 'residentAddress',
+                    value: String(residentAddress).slice(0, 480)
+                });
+            }
+
+            // Attach record id + collection so backend can fetch full document
+            if (itemToInsert && itemToInsert.form_record_id) {
+                customFields.push({
+                    title: 'form_record_id',
+                    value: String(itemToInsert.form_record_id)
+                });
+            }
+            if (itemToInsert && itemToInsert.form_collection) {
+                customFields.push({
+                    title: 'form_collection',
+                    value: String(itemToInsert.form_collection)
+                });
+            }
+
+            const lineItemToAdd = {
+                productId: product.productId,
+                quantity: 1,
+                options: {
+                    customTextFields: customFields
+                }
+            };
+
+            console.log('Prepared line item for cart:', lineItemToAdd);
+            productsToAdd.push(lineItemToAdd);
         }
 
-        if (productsToAdd.length === 0) {
-            console.warn('No valid products to add to cart after processing product list.');
+        if (!productsToAdd.length) {
+            console.warn('No valid products to add to cart');
             return;
         }
 
         console.log('Products to add using wix-stores API:', productsToAdd);
 
-        // 3) Add only the new items
         try {
             const updatedCart = await wixStores.cart.addProducts(productsToAdd);
             console.log("Products added to cart successfully with customTextFields. Updated cart:", updatedCart);
         } catch (storesError) {
             console.error("Error with wix-stores API, trying alternative method:", storesError);
-            
-            // Fallback: add products one by one
+
+            // Fallback: try adding products one by one
             for (const productToAdd of productsToAdd) {
                 try {
                     const updatedCart = await wixStores.cart.addProducts([productToAdd]);
-                    console.log(`Successfully added individual product with customTextFields: ${productToAdd.productId}`, updatedCart);
+                    console.log(`Successfully added individual product ${productToAdd.productId}`, updatedCart);
                 } catch (individualError) {
                     console.error(`Failed to add individual product ${productToAdd.productId}:`, individualError);
                 }
