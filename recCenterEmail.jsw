@@ -3,10 +3,11 @@
 import wixData from 'wix-data';
 import { triggeredEmails } from 'wix-crm-backend';
 
-// 👇 Rec center manager contact (from Contacts in Wix) – Sarah for testing
-// Contact URL example:
+// 👇 Rec center manager contact (last string between /view/ and ? from the url in Contacts in Wix) – Sarah's for testing is e7318ccd-c974-44ad-83c6-42e578cddf0b
+// This is Sarah's contact URL https://manage.wix.com/dashboard/0777d45d-343e-41d3-84fb-1eb04ff24e57/contacts/view/e7318ccd-c974-44ad-83c6-42e578cddf0b?referralInfo=contacts
+// Contact URL for rec center example:
 // https://manage.wix.com/dashboard/0777d45d-343e-41d3-84fb-1eb04ff24e57/contacts/view/15fc640b-ef66-4f30-8679-0bc017db5275
-const REC_MANAGER_CONTACT_ID = "e7318ccd-c974-44ad-83c6-42e578cddf0b";
+const REC_MANAGER_CONTACT_ID = "15fc640b-ef66-4f30-8679-0bc017db5275";
 
 // 👇 Triggered email ID you created in Wix (the one with ${variables} in the template)
 const REC_TRIGGER_EMAIL_ID = "V5ISSYC";
