@@ -275,6 +275,12 @@ export async function wixStores_onOrderPaid(event) {
 
                 if (hoaDuesPurchased) {
                     resident.hoa_dues_paid = true;
+                    try {
+                        resident.hoa_dues_paid_date = paymentDate;
+                    }
+                    catch (err) {
+                        console.error("Error setting hoa_dues_paid_date:", err);
+                    }
                 }
                 if (recDuesPurchased) {
                     resident.rec_dues_paid = true;
