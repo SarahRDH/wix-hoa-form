@@ -104,7 +104,7 @@ export async function wixStores_onOrderPaid(event) {
         ];
 
         const REC_KEY_FOB_FORM_SKUS = [
-            "rec-key-fob"
+            "key-fob"
         ];
 
         const PAVILION_FORM_SKUS = [
