@@ -3,6 +3,7 @@ import wixData from 'wix-data';
 import wixStores from 'wix-stores';
 import wixLocation from 'wix-location';
 import wixEcomFrontend from 'wix-ecom-frontend';
+import { nonResidentLogic } from 'public/non-resident-wix-collection-query.js';
 
 // Global variables to store state
 let selectedAddress = '';
@@ -144,6 +145,9 @@ let residentAddressDropdown = $w('#dropdown1');
 let residentDropdownMessage = $w('#text58');
 let nonResidentAddressDropdown = $w('#dropdown2');
 let nonResidentRecMemberQuestion = $w('#radioGroup2');
+let nonResidentAddressInput = $w('#input56');
+let nonResInputBox = $w('#box29');
+let nonResDropdownBox = $w('#box27');
 let selectProductStatebox = $w('#statebox8');
 let formStatebox = $w('#statebox9');
 let formSection = $w('#section1');
@@ -602,7 +606,8 @@ $w.onReady(function () {
     residentDropdownMessage.hide();
     residentAddressDropdown.collapse();
     nonResidentRecMemberQuestion.collapse();
-    nonResidentAddressDropdown.collapse();
+    nonResDropdownBox.collapse();
+    nonResInputBox.collapse();
     selectProductStatebox.collapse();
     formStatebox.collapse();
     residentBox.collapse();
@@ -612,40 +617,65 @@ $w.onReady(function () {
     // Are you a resident?
     $w('#radioGroup1').onChange(() => {
         const owns = $w('#radioGroup1').value === 'Yes';
+
         if (owns) {
             isResident = true;
             residentBox.expand();
             residentAddressDropdown.expand();
             residentDropdownMessage.show();
             nonResidentRecMemberQuestion.collapse();
-            nonResidentAddressDropdown.collapse();
             $w('#text126').hide(); //non-resident registration closed message
         } else {
             isNonResident = true;
-            $w('#text126').show(); //non-resident registration closed message
-            // nonResidentBox.expand();
-            // nonResidentRecMemberQuestion.expand();
+            $w('#text126').hide(); //non-resident registration closed message
+            nonResidentBox.expand();
+            nonResidentRecMemberQuestion.expand();
             residentBox.collapse();
             residentAddressDropdown.collapse();
             residentDropdownMessage.hide();
-            
-
         }
     });
 
     // If non-resident, are you a rec center member?
-    nonResidentRecMemberQuestion.onChange(() => {
-        const isNonResRecMember = nonResidentRecMemberQuestion.value === 'Yes';
-        if (isNonResRecMember) {
-            nonResidentAddressDropdown.expand();
-            //make recMember true only if the address is found ******* need to set up
-            isRecMember = true;
-            selectProductStatebox.changeState('nonResidentIsRecMember');
+    let nonResRecMember = false;
+    nonResidentRecMemberQuestion.onChange(async () => {
+        try {
+            //if nonResidentLogic returned true, set nonResRecMember to true
+            const result = await nonResidentLogic({
+                isNonResident,
+                recMemberElem: nonResidentRecMemberQuestion,
+                addressInputElem: nonResidentAddressInput,
+                addressDropdownElem: nonResidentAddressDropdown
+            });
+            if (result === true) {
+                nonResRecMember = true;
+            }
+        } catch (err) {
+            console.error('nonResidentLogic failed:', err);
+        }
+
+        if (nonResRecMember) {
+            console.log('Non-resident is a rec member:', nonResRecMember);
+            selectProductStatebox.changeState('notResidentIsRecMember');
         } else {
+            console.log('Non-resident is NOT a rec member:', nonResRecMember);
             selectProductStatebox.changeState('notResidentNotRecMember');
         }
-    });
     
+        selectProductStatebox.expand();
+    });
+    // Get the selected address and add it to the forms.
+    let nonResHouseholdId = null;
+    nonResidentAddressDropdown.onChange(() => {
+        nonResHouseholdId = nonResidentAddressDropdown.value;
+        selectedAddress = nonResHouseholdId;
+    });
+
+    nonResidentAddressInput.onChange(() => {
+        nonResHouseholdId = nonResidentAddressInput.value;
+        selectedAddress = nonResHouseholdId;
+    });
+
     // When resident address chosen, decide which statebox to show
     residentAddressDropdown.onChange(async () => {
         const householdId = residentAddressDropdown.value;
