@@ -101,8 +101,7 @@ export async function wixStores_onOrderPaid(event) {
 
         const REC_MEMBER_FORM_SKUS = [
             "rec-center-non-resident",
-            "rec-center-resident",
-            "test-product-physical"
+            "rec-center-resident"
         ];
 
         const REC_KEY_FOB_FORM_SKUS = [
@@ -386,9 +385,9 @@ export async function wixStores_onOrderPaid(event) {
 
 
         // If a non-resident rec membership was purchased, copy the submitted rec member form
-        // into the nonResidentsMainCollection for easier lookup.
+        // into the nonResidentsMainCollection for automatic lookup and dynamic product selection
         try {
-            if (orderSkus.includes('rec-center-non-resident') || orderSkus.includes('test-product-physical')) {
+            if (orderSkus.includes('rec-center-non-resident')) {
                 console.log('Order contains ' + orderSkus.join(', ') + '; copying formSubsRecMember into nonResidentsMainCollection');
 
                 let formRecord = null;
@@ -427,11 +426,6 @@ export async function wixStores_onOrderPaid(event) {
                         source_form_id: formRecord._id,
                         source_form_collection: 'formSubsRecMember'
                     };
-
-                    // Copy over common fields if present
-                    // ['name', 'email', 'phone', 'unit_number', 'override_rec_dues'].forEach(key => {
-                    //     if (typeof formRecord[key] !== 'undefined') toInsert[key] = formRecord[key];
-                    // });
 
                     try {
                         const inserted = await wixData.insert(NON_RESIDENTS_COLLECTION, toInsert);

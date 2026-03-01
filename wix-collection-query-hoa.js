@@ -134,12 +134,6 @@ const availableNonResidentProducts = [
         value: "rec-center-non-resident",
         productId: "f7960293-7772-25ce-ca3e-1ce11d5ef324",
         productSku: "rec-center-non-resident"
-    },
-    {
-        label: "Test Product",
-        value: "test-product-physical",
-        productId: "3c5b6bf0-7042-3909-35ed-9f1eb0112de9",
-        productSku: "test-product-physical"
     }
 ];
 
@@ -965,7 +959,6 @@ $w.onReady(function () {
                     switch (sel) {
                         case 'rec-center-resident':
                         case 'rec-center-non-resident':
-                        case 'test-product-physical':
                             matchedState = formBoxRecMember;
                             formName = 'rec_membership';
                             formCollectionName = 'formSubsRecMember';
