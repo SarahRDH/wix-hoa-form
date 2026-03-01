@@ -656,29 +656,45 @@ $w.onReady(function () {
             console.error('nonResidentLogic failed:', err);
         }
 
-        selectProductStatebox.expand();
         if (nonResRecMember) {
             console.log('Non-resident is a rec member:', nonResRecMember);
-            selectProductStatebox.changeState('notResidentIsRecMember');
-            radioGroup17.options = availableRecMemberProducts;
+
         } else {
             console.log('Non-resident is NOT a rec member:', nonResRecMember);
-            selectProductStatebox.changeState('notResidentNotRecMember');
-            radioGroup16.options = availableNonResidentProducts;
-        }
 
+        }
     });
-        
+
     // Get the selected address and add it to the forms.
     let nonResHouseholdId = null;
     nonResidentAddressDropdown.onChange(() => {
         nonResHouseholdId = nonResidentAddressDropdown.value;
         selectedAddress = nonResHouseholdId;
+        if(!nonResHouseholdId || nonResHouseholdId === 'undefined') { 
+            selectProductStatebox.collapse();
+            console.log('No resident address was entered.');
+            return;
+        } else {
+            selectProductStatebox.expand();
+            selectProductStatebox.changeState('notResidentIsRecMember');
+            radioGroup17.options = availableRecMemberProducts;
+        }
+
     });
 
     nonResidentAddressInput.onChange(() => {
         nonResHouseholdId = nonResidentAddressInput.value;
         selectedAddress = nonResHouseholdId;
+        if (!nonResHouseholdId || nonResHouseholdId === 'undefined') { 
+            selectProductStatebox.collapse();
+            console.log('No resident address was entered.');
+            return;
+        } else {
+            selectProductStatebox.expand();
+            selectProductStatebox.changeState('notResidentNotRecMember');
+            radioGroup16.options = availableNonResidentProducts;
+        }
+
     });
 
     // When resident address chosen, decide which statebox to show
