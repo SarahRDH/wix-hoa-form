@@ -672,19 +672,19 @@ $w.onReady(function () {
             selectProductStatebox.changeState('notResidentNotRecMember');
             radioGroup16.options = availableNonResidentProducts;
         }
-    
-        // Get the selected address and add it to the forms.
-        let nonResHouseholdId = null;
-        nonResidentAddressDropdown.onChange(() => {
-            nonResHouseholdId = nonResidentAddressDropdown.value;
-            selectedAddress = nonResHouseholdId;
-        });
 
-        nonResidentAddressInput.onChange(() => {
-            nonResHouseholdId = nonResidentAddressInput.value;
-            selectedAddress = nonResHouseholdId;
-        });
+    });
+        
+    // Get the selected address and add it to the forms.
+    let nonResHouseholdId = null;
+    nonResidentAddressDropdown.onChange(() => {
+        nonResHouseholdId = nonResidentAddressDropdown.value;
+        selectedAddress = nonResHouseholdId;
+    });
 
+    nonResidentAddressInput.onChange(() => {
+        nonResHouseholdId = nonResidentAddressInput.value;
+        selectedAddress = nonResHouseholdId;
     });
 
     // When resident address chosen, decide which statebox to show
