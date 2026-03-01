@@ -2,6 +2,7 @@ import wixData from 'wix-data';
 import { emailRecCenterForm } from 'backend/recCenterEmail.jsw';
 
 const RESIDENTS_COLLECTION = "Import1"; 
+const NON_RESIDENTS_COLLECTION = "nonResidentsMainCollection";
 
 // Helper: update payment_successful_date on the NEWEST matching form submission
 async function updateCollectionPaymentDate(collectionId, residentAddress, paymentDate, formPayload = null) {
@@ -100,7 +101,8 @@ export async function wixStores_onOrderPaid(event) {
 
         const REC_MEMBER_FORM_SKUS = [
             "rec-center-non-resident",
-            "rec-center-resident"
+            "rec-center-resident",
+            "test-product-physical"
         ];
 
         const REC_KEY_FOB_FORM_SKUS = [
@@ -381,6 +383,70 @@ export async function wixStores_onOrderPaid(event) {
                 }
             }
         }
+
+
+        // If a non-resident rec membership was purchased, copy the submitted rec member form
+        // into the nonResidentsMainCollection for easier lookup.
+        try {
+            if (orderSkus.includes('rec-center-non-resident') || orderSkus.includes('test-product-physical')) {
+                console.log('Order contains ' + orderSkus.join(', ') + '; copying formSubsRecMember into nonResidentsMainCollection');
+
+                let formRecord = null;
+
+                // Prefer explicit form_record_id if present in order metadata
+                if (formData && formData.form_record_id) {
+                    try {
+                        formRecord = await wixData.get('formSubsRecMember', formData.form_record_id);
+                        console.log('Retrieved formSubsRecMember by id:', formRecord && formRecord._id);
+                    } catch (getErr) {
+                        console.warn('Could not fetch formSubsRecMember by id, will fallback to address query:', getErr);
+                    }
+                }
+
+                // Fallback: find newest rec member form for this address
+                if (!formRecord) {
+                    try {
+                        const q = await wixData.query('formSubsRecMember')
+                            .eq('form_property_address', residentAddress)
+                            .descending('_createdDate')
+                            .limit(1)
+                            .find();
+                        if (q && q.items && q.items.length) {
+                            formRecord = q.items[0];
+                            console.log('Found latest formSubsRecMember by address:', formRecord && formRecord._id);
+                        }
+                    } catch (qErr) {
+                        console.warn('Error querying formSubsRecMember by address:', qErr);
+                    }
+                }
+
+                if (formRecord) {
+                    const toInsert = {
+                        full_address: formRecord.form_property_address || residentAddress,
+                        rec_dues_paid: true,
+                        source_form_id: formRecord._id,
+                        source_form_collection: 'formSubsRecMember'
+                    };
+
+                    // Copy over common fields if present
+                    // ['name', 'email', 'phone', 'unit_number', 'override_rec_dues'].forEach(key => {
+                    //     if (typeof formRecord[key] !== 'undefined') toInsert[key] = formRecord[key];
+                    // });
+
+                    try {
+                        const inserted = await wixData.insert(NON_RESIDENTS_COLLECTION, toInsert);
+                        console.log('Inserted record into nonResidentsMainCollection from rec member form:', inserted && inserted._id);
+                    } catch (insErr) {
+                        console.error('Failed to insert into nonResidentsMainCollection:', insErr);
+                    }
+                } else {
+                    console.warn('No rec member form record found to copy for address:', residentAddress);
+                }
+            }
+        } catch (copyErr) {
+            console.error('Error while copying rec member form to nonResidentsMainCollection:', copyErr);
+        }
+
 
         console.log("=== FINISHED wixStores_onOrderPaid SUCCESSFULLY ===");
 
